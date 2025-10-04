@@ -1,0 +1,82 @@
+package com.aurionpro.entity;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+
+@Entity
+@Table(name = "users", uniqueConstraints = { @UniqueConstraint(columnNames = { "username" }),
+		@UniqueConstraint(columnNames = { "email" }) })
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class UserEntity {
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long userId;
+
+	@NotBlank
+	@Size(min = 4, max = 50)
+	@Column(nullable = false)
+	private String username;
+
+	@NotBlank
+	@Column(nullable = false)
+	@Size(min = 8, message = "Password should have at least 8 characters")
+	private String password;
+
+	@Email
+	@NotBlank
+	@Column(nullable = false)
+	private String email;
+
+	@NotBlank
+	@Column(nullable = false)
+	private String status; // e.g. ACTIVE / INACTIVE
+
+	@CreationTimestamp
+	@Column(updatable = false)
+	private LocalDateTime createdAt;
+
+	 
+
+	@OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true,  fetch = FetchType.LAZY)
+	@ToString.Exclude
+    @EqualsAndHashCode.Exclude
+	private List<UserRoleEntity> roles = new ArrayList<>();
+	
+	@OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+	@ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private OrganizationEntity organization;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private EmployeeEntity employee;
+}

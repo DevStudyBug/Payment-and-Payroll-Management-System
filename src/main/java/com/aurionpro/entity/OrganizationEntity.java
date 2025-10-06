@@ -14,6 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -24,7 +25,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "organizations")
+
+@Table(name = "organizations", uniqueConstraints = { @UniqueConstraint(columnNames = { "registrationNo" }),
+		@UniqueConstraint(columnNames = { "email" }),@UniqueConstraint(columnNames = { "orgName" }) })
 public class OrganizationEntity {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)

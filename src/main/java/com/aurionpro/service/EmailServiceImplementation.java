@@ -18,7 +18,7 @@ public class EmailServiceImplementation implements EmailService {
 		String verifyUrl = "http://localhost:8080/api/v1/auth/verify-email?token=" + token;
 
 		String body = """
-				Dear Oranization,
+				Dear Organization,
 
 				Thank you for registering on our Portal.
 				Please click the link below to verify your email address:

@@ -10,6 +10,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.aurionpro.security.JwtAuthenticationFilter;
+import com.aurionpro.security.OrgOnboardingEnforcementFilter;
 
 import lombok.RequiredArgsConstructor;
 
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final AuthenticationProvider authenticationProvider;
+	private final OrgOnboardingEnforcementFilter orgOnboardingEnforcementFilter;
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -28,7 +30,9 @@ public class SecurityConfig {
 						.permitAll().anyRequest().authenticated())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authenticationProvider(authenticationProvider) // use custom auth provider
-				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // add JWT filter
+				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+				.addFilterAfter(orgOnboardingEnforcementFilter, JwtAuthenticationFilter.class)
+
 				.build();
 	}
 

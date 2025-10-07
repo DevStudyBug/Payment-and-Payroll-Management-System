@@ -1,5 +1,6 @@
 package com.aurionpro.app.common;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -8,17 +9,43 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import com.aurionpro.app.exception.AuthenticationFailedException;
 import com.aurionpro.app.exception.DuplicateResourceException;
 import com.aurionpro.app.exception.InvalidOperationException;
 import com.aurionpro.app.exception.JwtValidationException;
 import com.aurionpro.app.exception.NotFoundException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+	@ExceptionHandler(JsonProcessingException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ResponseEntity<Map<String, Object>> handleJsonException(JsonProcessingException ex) {
+		Map<String, Object> error = new HashMap<>();
+		error.put("error", "Invalid JSON input");
+
+		// Customize message based on common Jackson causes
+		String message = ex.getOriginalMessage();
+
+		if (message.contains("Unexpected character")) {
+			error.put("details", "Malformed JSON — please check quotes, commas, and braces.");
+		} else if (message.contains("Cannot deserialize")) {
+			error.put("details", "JSON structure does not match expected format.");
+		} else if (message.contains("Unrecognized field")) {
+			error.put("details", "JSON contains unknown field — please remove extra keys.");
+		} else {
+			error.put("details", "Invalid JSON format in 'meta' or request body.");
+		}
+
+		// Log the full raw exception (useful for debugging in dev)
+		System.err.println("[JSON ERROR] " + message);
+
+		return ResponseEntity.badRequest().body(error);
+	}
 
 	@ExceptionHandler(NotFoundException.class)
 	public ResponseEntity<ApiError> handleNotFound(NotFoundException ex, HttpServletRequest req) {
@@ -30,13 +57,10 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
 	}
 
-
-    @ExceptionHandler(AuthenticationFailedException.class)
-    public ResponseEntity<Map<String, String>> handleAuthFailed(AuthenticationFailedException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("message", ex.getMessage()));
-    }
-
+	@ExceptionHandler(AuthenticationFailedException.class)
+	public ResponseEntity<Map<String, String>> handleAuthFailed(AuthenticationFailedException ex) {
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ex.getMessage()));
+	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest req) {
@@ -75,14 +99,14 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<Object> handleJwtValidationException(JwtValidationException ex) {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse("Unauthorized", ex.getMessage()));
 	}
+
 	@ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<Map<String, String>> handleDuplicate(DuplicateResourceException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("error", ex.getMessage()));
-    }
-	 @ExceptionHandler(InvalidOperationException.class)
-	    public ResponseEntity<Map<String, String>> handleInvalidOperation(InvalidOperationException ex) {
-	        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-	                .body(Map.of("error", ex.getMessage()));
-	    }
+	public ResponseEntity<Map<String, String>> handleDuplicate(DuplicateResourceException ex) {
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", ex.getMessage()));
+	}
+
+	@ExceptionHandler(InvalidOperationException.class)
+	public ResponseEntity<Map<String, String>> handleInvalidOperation(InvalidOperationException ex) {
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", ex.getMessage()));
+	}
 }

@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
 @Entity
 
 @Table(name = "organizations", uniqueConstraints = { @UniqueConstraint(columnNames = { "registrationNo" }),
-		@UniqueConstraint(columnNames = { "email" }),@UniqueConstraint(columnNames = { "orgName" }) })
+		@UniqueConstraint(columnNames = { "email" }), @UniqueConstraint(columnNames = { "orgName" }) })
 public class OrganizationEntity {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -53,6 +53,8 @@ public class OrganizationEntity {
 	@Column(nullable = false)
 	private String contactNo;
 
+	private boolean documentUploaded = false;
+	private boolean bankDetailsProvided = false;
 	@Email
 	private String email;
 

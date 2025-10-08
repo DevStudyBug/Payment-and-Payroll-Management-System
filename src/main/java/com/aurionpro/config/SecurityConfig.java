@@ -29,11 +29,9 @@ public class SecurityConfig {
 						.requestMatchers("/api/v1/auth/org-register", "/api/v1/auth/verify-email", "/api/v1/auth/login")
 						.permitAll().anyRequest().authenticated())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.authenticationProvider(authenticationProvider) // use custom auth provider
+				.authenticationProvider(authenticationProvider) 
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-				.addFilterAfter(orgOnboardingEnforcementFilter, JwtAuthenticationFilter.class)
-
-				.build();
+				.addFilterAfter(orgOnboardingEnforcementFilter, JwtAuthenticationFilter.class).build();
 	}
 
 }

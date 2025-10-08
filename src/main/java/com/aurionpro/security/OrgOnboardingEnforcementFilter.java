@@ -7,7 +7,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.aurionpro.entity.UserEntity;
 import com.aurionpro.repo.UserRepository;
 
 import jakarta.servlet.FilterChain;
@@ -28,8 +27,9 @@ public class OrgOnboardingEnforcementFilter extends OncePerRequestFilter {
 
 		String path = req.getRequestURI();
 
+		// Allow authentication and onboarding-related endpoints to pass through
 		if (path.startsWith("/api/auth") || path.contains("/upload-document") || path.contains("/add-bank-details")
-				|| path.contains("/test-upload")) {
+				|| path.contains("/test-upload") || path.contains("/onboarding-status")||path.contains("/documents/**")||path.contains("/bank/reupload") ) {
 			chain.doFilter(req, res);
 			return;
 		}
@@ -42,6 +42,15 @@ public class OrgOnboardingEnforcementFilter extends OncePerRequestFilter {
 
 			if (user != null && user.getOrganization() != null) {
 				String status = user.getOrganization().getStatus();
+
+				if ("UNDER_REVIEW".equalsIgnoreCase(status)) {
+					res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+					res.setContentType("application/json");
+					res.getWriter().write(
+							"{\"error\":\"Your documents and bank details are under review. Please wait for bank admin approval.\"}");
+					return;
+				}
+
 				if (!"ACTIVE".equalsIgnoreCase(status)) {
 					res.setStatus(HttpServletResponse.SC_FORBIDDEN);
 					res.setContentType("application/json");

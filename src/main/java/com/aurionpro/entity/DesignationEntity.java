@@ -1,9 +1,6 @@
 package com.aurionpro.entity;
 
-import java.time.LocalDateTime;
-
-import org.hibernate.annotations.CreationTimestamp;
-
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -21,34 +18,19 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "documents")
-public class DocumentEntity {
+@Table(name = "designations")
+public class DesignationEntity {
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long documentId;
+	private Long designationId;
 
-	@NotBlank
-	private String fileName;
-
-	@NotBlank
-	private String fileUrl; // Cloudinary
-
-	@NotBlank
-	private String fileType; // PDF, IMAGE
-
-	@NotBlank
-	private String status; // PENDING / APPROVED / REJECTED
-	private String rejectionReason;
-	@CreationTimestamp
-	private LocalDateTime uploadedAt;
-
-	private LocalDateTime verifiedAt;
+	@NotBlank(message = "Designation name is required.")
+	@Column(nullable = false, unique = true, length = 100)
+	private String name;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "orgId")
+	@JoinColumn(name = "organization_id", nullable = false)
 	private OrganizationEntity organization;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "employeeId")
-	private EmployeeEntity employee;
 }

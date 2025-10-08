@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -39,9 +40,13 @@ public class EmployeeEntity {
 	@JoinColumn(name = "orgId", nullable = false)
 	private OrganizationEntity organization;
 
-	@NotBlank
-	private String name;
+	@NotBlank(message = "First name is required.")
+	@Column(name = "first_name", nullable = false)
+	private String firstName;
 
+	@NotBlank(message = "Last name is required.")
+	@Column(name = "last_name", nullable = false)
+	private String lastName;
 	@Past
 	private LocalDate dob;
 
@@ -52,7 +57,7 @@ public class EmployeeEntity {
 	private String designation;
 
 	@NotBlank
-	private String status;
+	private String status;// NEW, UNDER_REVIEW, REUPLOAD_REQUIRED, VERIFIED
 
 	@OneToMany(mappedBy = "employee", cascade = CascadeType.ALL)
 	private List<DocumentEntity> documents = new ArrayList<>();

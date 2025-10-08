@@ -41,6 +41,7 @@ public class VerificationTokenEntity {
 
 	@Temporal(TemporalType.TIMESTAMP)
 	private Date expiryDate;
+	private boolean used = false;
 
 	public VerificationTokenEntity(String token, UserEntity user) {
 		this.token = token;

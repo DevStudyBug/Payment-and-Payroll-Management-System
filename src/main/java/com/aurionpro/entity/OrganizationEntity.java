@@ -72,6 +72,8 @@ public class OrganizationEntity {
 
 	@OneToMany(mappedBy = "organization", cascade = CascadeType.ALL)
 	private List<VendorEntity> vendors = new ArrayList<>();
+	@OneToMany(mappedBy = "organization", cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<DesignationEntity> designations = new ArrayList<>();
 
 	@OneToMany(mappedBy = "organization", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<SalaryTemplateEntity> salaryTemplates = new ArrayList<>();

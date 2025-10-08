@@ -9,11 +9,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class OrganizationOnboardingResponseDto {
-    private Long orgId;
-    private String orgName;
-    private boolean documentUploaded;
-    private boolean bankDetailsProvided;
-    private String status;
+public class SalaryTemplateResponseDto {
+
+    private Long salaryTemplateId;
+    private Long designationId;
+    private String designationName;
     private String message;
 }

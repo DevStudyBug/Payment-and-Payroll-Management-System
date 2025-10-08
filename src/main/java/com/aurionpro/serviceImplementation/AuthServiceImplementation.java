@@ -1,4 +1,4 @@
-package com.aurionpro.service;
+package com.aurionpro.serviceImplementation;
 
 import java.util.Set;
 import java.util.UUID;
@@ -23,6 +23,8 @@ import com.aurionpro.repo.OrganizationRepository;
 import com.aurionpro.repo.UserRepository;
 import com.aurionpro.repo.VerificationTokenRepository;
 import com.aurionpro.security.JwtService;
+import com.aurionpro.service.AuthService;
+import com.aurionpro.service.EmailService;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -79,7 +81,7 @@ public class AuthServiceImplementation implements AuthService {
 			emailService.sendVerificationEmail(user.getEmail(), token);
 		} catch (Exception e) {
 			throw new InvalidOperationException(
-					"Organization registered but failed to send verification email. Please try again later.");
+					"failed to send verification email. Please try again later.");
 		}
 		OrgRegisterResponseDto response = modelMapper.map(org, OrgRegisterResponseDto.class);
 		response.setEmail(user.getEmail());

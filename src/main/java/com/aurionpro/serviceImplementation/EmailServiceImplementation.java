@@ -1,8 +1,10 @@
-package com.aurionpro.service;
+package com.aurionpro.serviceImplementation;
 
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+
+import com.aurionpro.service.EmailService;
 
 import lombok.RequiredArgsConstructor;
 

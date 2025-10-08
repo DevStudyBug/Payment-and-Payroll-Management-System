@@ -50,15 +50,22 @@ public class AuthController {
 		VerificationTokenEntity vToken = verificationTokenRepo.findByToken(token)
 				.orElseThrow(() -> new RuntimeException("Invalid token"));
 
+		if (vToken.isUsed()) {
+			return ResponseEntity.badRequest().body("This verification link has already been used.");
+		}
+
 		if (vToken.getExpiryDate().before(new Date())) {
-			return ResponseEntity.badRequest().body("Token expired");
+			return ResponseEntity.badRequest().body("This verification link has expired.");
 		}
 
 		UserEntity user = vToken.getUser();
 		user.setStatus("ACTIVE");
 		userRepository.save(user);
 
-		return ResponseEntity.ok("Email verified successfully. You can now log in.");
+		vToken.setUsed(true);
+		verificationTokenRepo.save(vToken);
+
+		return ResponseEntity.ok("Email verified successfully! You can now log in.");
 	}
 
 	@PostMapping("/login")

@@ -61,7 +61,9 @@ public class UserEntity implements UserDetails {
 	@NotBlank
 	@Column(nullable = false)
 	private String status; // e.g. ACTIVE / INACTIVE
-
+	private boolean firstLogin = true;
+	private boolean passwordChanged = false;
+	private LocalDateTime lastPasswordChangedAt;
 	@CreationTimestamp
 	@Column(updatable = false)
 	private LocalDateTime createdAt;

@@ -62,8 +62,7 @@ public class AuthController {
 		user.setStatus("ACTIVE");
 		userRepository.save(user);
 
-		vToken.setUsed(true);
-		verificationTokenRepo.save(vToken);
+		verificationTokenRepo.delete(vToken);
 
 		return ResponseEntity.ok("Email verified successfully! You can now log in.");
 	}
@@ -73,4 +72,5 @@ public class AuthController {
 		LoginResponseDto response = authService.loginOrganization(request);
 		return ResponseEntity.ok(response);
 	}
+
 }

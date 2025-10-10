@@ -19,17 +19,28 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.aurionpro.dto.request.BankDetailsRequestDto;
+import com.aurionpro.dto.request.BankVerificationRequestDto;
 import com.aurionpro.dto.request.DocumentUploadRequestDto;
+import com.aurionpro.dto.request.DocumentVerificationRequestDto;
+import com.aurionpro.dto.request.EmployeeRegisterRequestDto;
 import com.aurionpro.dto.request.SalaryTemplateRequestDto;
 import com.aurionpro.dto.response.DesignationResponseDto;
+import com.aurionpro.dto.response.EmployeeBulkRegisterResponseDto;
+import com.aurionpro.dto.response.EmployeeDetailResponseDto;
+import com.aurionpro.dto.response.EmployeeListResponseDto;
+import com.aurionpro.dto.response.EmployeeRegisterResponseDto;
 import com.aurionpro.dto.response.OrganizationOnboardingResponseDto;
 import com.aurionpro.dto.response.OrganizationOnboardingStatusResponseDto;
 import com.aurionpro.dto.response.PagedResponse;
 import com.aurionpro.dto.response.SalaryTemplateDetailResponseDto;
 import com.aurionpro.dto.response.SalaryTemplateResponseDto;
 import com.aurionpro.dto.response.SalaryTemplateSummaryResponseDto;
+import com.aurionpro.dto.response.VerificationResponseDto;
 import com.aurionpro.entity.DesignationEntity;
+import com.aurionpro.service.AuthService;
 import com.aurionpro.service.DesignationService;
+import com.aurionpro.service.EmployeeService;
+import com.aurionpro.service.OrgService;
 import com.aurionpro.service.OrganizationOnboardingService;
 import com.aurionpro.service.SalaryTemplateService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -46,6 +57,9 @@ public class OrganizationController {
 	private final OrganizationOnboardingService onboardingService;
 	private final SalaryTemplateService salaryTemplateService;
 	private final DesignationService designationService;
+	private final EmployeeService employeeService;
+	private final AuthService authService;
+	private final OrgService orgService;
 
 	@PreAuthorize("hasRole('ORG_ADMIN')")
 	@PostMapping(value = "/upload-document", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -147,4 +161,57 @@ public class OrganizationController {
 	public ResponseEntity<OrganizationOnboardingStatusResponseDto> getOnboardingStatus(Authentication authentication) {
 		return ResponseEntity.ok(onboardingService.getOnboardingStatus(authentication));
 	}
+
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@PostMapping("/employees")
+	public ResponseEntity<EmployeeRegisterResponseDto> registerEmployee(Authentication authentication,
+			@Valid @RequestBody EmployeeRegisterRequestDto request) {
+
+		EmployeeRegisterResponseDto response = authService.registerEmployee(authentication, request);
+		return ResponseEntity.ok(response);
+	}
+
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@PostMapping("/multiple-employees")
+	public ResponseEntity<EmployeeBulkRegisterResponseDto> uploadEmployeesExcel(Authentication authentication,
+			@RequestParam("file") MultipartFile file) {
+
+		EmployeeBulkRegisterResponseDto response = authService.registerEmployeesFromExcel(authentication, file);
+
+		return ResponseEntity.ok(response);
+	}
+
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@GetMapping("/employees/filter")
+	public ResponseEntity<List<EmployeeListResponseDto>> getEmployeesByStatus(Authentication authentication,
+			@RequestParam(required = false, defaultValue = "ALL") String status) {
+		return ResponseEntity.ok(orgService.getEmployeesByStatus(authentication, status));
+	}
+
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@GetMapping("/employees/{employeeId}/details")
+	public ResponseEntity<EmployeeDetailResponseDto> getEmployeeDetails(@PathVariable Long employeeId) {
+		return ResponseEntity.ok(orgService.getEmployeeDetails(employeeId));
+	}
+
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@PutMapping("/employees/{employeeId}/document/{documentId}/verify")
+	public ResponseEntity<VerificationResponseDto> verifyDocument(@PathVariable Long employeeId,
+			@PathVariable Long documentId, @RequestBody DocumentVerificationRequestDto request) {
+		return ResponseEntity.ok(orgService.verifyEmployeeDocument(employeeId, documentId, request));
+	}
+
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@PutMapping("/employees/{employeeId}/bank/verify")
+	public ResponseEntity<VerificationResponseDto> verifyBank(@PathVariable Long employeeId,
+			@RequestBody BankVerificationRequestDto request) {
+		return ResponseEntity.ok(orgService.verifyEmployeeBankDetails(employeeId, request));
+	}
+
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@PutMapping("/employees/{employeeId}/complete-onboarding")
+	public ResponseEntity<VerificationResponseDto> completeOnboarding(@PathVariable Long employeeId) {
+		return ResponseEntity.ok(orgService.completeEmployeeOnboarding(employeeId));
+	}
+
 }

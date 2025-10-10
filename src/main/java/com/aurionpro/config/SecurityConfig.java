@@ -10,7 +10,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.aurionpro.security.JwtAuthenticationFilter;
-import com.aurionpro.security.OrgOnboardingEnforcementFilter;
+import com.aurionpro.security.OnboardingEnforcementFilter;
 
 import lombok.RequiredArgsConstructor;
 
@@ -20,18 +20,19 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final AuthenticationProvider authenticationProvider;
-	private final OrgOnboardingEnforcementFilter orgOnboardingEnforcementFilter;
+	private final OnboardingEnforcementFilter onboardingEnforcementFilter;
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		return http.csrf(csrf -> csrf.disable())
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/api/v1/auth/org-register", "/api/v1/auth/verify-email", "/api/v1/auth/login")
-						.permitAll().anyRequest().authenticated())
+						.permitAll().requestMatchers("/api/v1/org/**").hasAuthority("ORG_ADMIN")
+						.requestMatchers("/api/v1/employee/**").hasAuthority("EMPLOYEE").anyRequest().authenticated())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.authenticationProvider(authenticationProvider) 
+				.authenticationProvider(authenticationProvider)
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-				.addFilterAfter(orgOnboardingEnforcementFilter, JwtAuthenticationFilter.class).build();
+				.addFilterAfter(onboardingEnforcementFilter, JwtAuthenticationFilter.class).build();
 	}
 
 }

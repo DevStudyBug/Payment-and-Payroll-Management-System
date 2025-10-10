@@ -15,4 +15,5 @@ public interface SalaryTemplateService {
 			String sortBy, String sortDir);
 
 	public SalaryTemplateDetailResponseDto getTemplateById(Authentication authentication, Long templateId);
+	
 }

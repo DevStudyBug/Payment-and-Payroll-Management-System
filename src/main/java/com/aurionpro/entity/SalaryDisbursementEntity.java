@@ -24,28 +24,32 @@ import lombok.NoArgsConstructor;
 @Table(name = "salary_disbursements")
 public class SalaryDisbursementEntity {
 	@Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long disbursementId;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long disbursementId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "orgId", nullable = false)
-    private OrganizationEntity organization;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "orgId", nullable = false)
+	private OrganizationEntity organization;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "employeeId", nullable = false)
-    private EmployeeEntity employee;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "employeeId", nullable = false)
+	private EmployeeEntity employee;
 
-    @NotBlank
-    @Pattern(regexp = "^\\d{4}-(0[1-9]|1[0-2])$")
-    private String salaryMonth;
+	@NotBlank
+	@Pattern(regexp = "^\\d{4}-(0[1-9]|1[0-2])$")
+	private String salaryMonth;
 
-    @PositiveOrZero
-    private Double netSalary;
+	@PositiveOrZero
+	private Double netSalary;
 
-    @NotBlank
-    private String status;
+	@NotBlank
+	private String status; // "GENERATED", "UNDER_REVIEW", "APPROVED", "PAID", "REJECTED"
 
-    private LocalDateTime transactionDate;
+	private LocalDateTime transactionDate;
 
-    private String paymentRefNo;
+	private String paymentRefNo;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "paymentRequestId")
+	private PaymentRequestEntity paymentRequest;
+
 }

@@ -1,5 +1,6 @@
 package com.aurionpro.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -29,13 +30,17 @@ public class EmployeeBankDetailsEntity {
 
 	@NotBlank
 	private String accountNumber;
-
+	@NotBlank
+	private String accountHolderName;
 	@NotBlank
 	private String ifscCode;
-
+	@Column(nullable = false)
+	private String accountType;
+	private String branchName;
 	@NotBlank
 	private String bankName;
 
-	
+	private String verificationStatus; // PENDING, APPROVED, REJECTED
+	private String reviewerComments;
 
 }

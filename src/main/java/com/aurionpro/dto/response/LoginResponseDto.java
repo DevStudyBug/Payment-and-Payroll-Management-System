@@ -16,6 +16,6 @@ public class LoginResponseDto {
     private Long userId;
     private String email;
     private Set<String> roles;
-    private String orgStatus;   // PENDING / VERIFIED
+    private String status;   // PENDING / VERIFIED
     private String message;
 }

@@ -12,5 +12,6 @@ public interface EmployeeRepository extends JpaRepository<EmployeeEntity, Long> 
 	List<EmployeeEntity> findByOrganization_OrgIdAndStatusIgnoreCase(Long orgId, String status);
 
 	 List<EmployeeEntity> findByOrganization_OrgId(Long orgId);
+	 
 
 }

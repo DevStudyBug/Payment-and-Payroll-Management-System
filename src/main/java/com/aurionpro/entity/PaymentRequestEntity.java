@@ -54,6 +54,8 @@ public class PaymentRequestEntity {
 	@Column(nullable = false)
 	private PaymentRequestType requestType;
 	// VENDOR or PAYROLL
+	@Column(columnDefinition = "TEXT")
+	private String remark; // Reason for rejection or additional notes
 
 	@NotBlank
 	private String status;

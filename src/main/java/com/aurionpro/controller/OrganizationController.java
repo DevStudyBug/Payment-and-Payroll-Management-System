@@ -32,6 +32,8 @@ import com.aurionpro.dto.response.EmployeeRegisterResponseDto;
 import com.aurionpro.dto.response.OrganizationOnboardingResponseDto;
 import com.aurionpro.dto.response.OrganizationOnboardingStatusResponseDto;
 import com.aurionpro.dto.response.PagedResponse;
+import com.aurionpro.dto.response.PayrollGenerateResponseDto;
+import com.aurionpro.dto.response.PayrollSubmitResponseDto;
 import com.aurionpro.dto.response.SalaryTemplateDetailResponseDto;
 import com.aurionpro.dto.response.SalaryTemplateResponseDto;
 import com.aurionpro.dto.response.SalaryTemplateSummaryResponseDto;
@@ -42,6 +44,7 @@ import com.aurionpro.service.DesignationService;
 import com.aurionpro.service.EmployeeService;
 import com.aurionpro.service.OrgService;
 import com.aurionpro.service.OrganizationOnboardingService;
+import com.aurionpro.service.PayrollService;
 import com.aurionpro.service.SalaryTemplateService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -60,6 +63,7 @@ public class OrganizationController {
 	private final EmployeeService employeeService;
 	private final AuthService authService;
 	private final OrgService orgService;
+	private final PayrollService payrollService;
 
 	@PreAuthorize("hasRole('ORG_ADMIN')")
 	@PostMapping(value = "/upload-document", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -212,6 +216,20 @@ public class OrganizationController {
 	@PutMapping("/employees/{employeeId}/complete-onboarding")
 	public ResponseEntity<VerificationResponseDto> completeOnboarding(@PathVariable Long employeeId) {
 		return ResponseEntity.ok(orgService.completeEmployeeOnboarding(employeeId));
+	}
+
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@PostMapping("/payroll/generate/{month}")
+	public ResponseEntity<?> generatePayroll(Authentication authentication, @PathVariable String month) {
+		PayrollGenerateResponseDto response = payrollService.generatePayroll(authentication, month);
+	    return ResponseEntity.ok(response);
+	}
+
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@PostMapping("/payroll/submit/{month}")
+	public ResponseEntity<?> submitPayrollToBank(Authentication authentication, @PathVariable String month) {
+		PayrollSubmitResponseDto response = payrollService.submitPayrollToBank(authentication, month);
+	    return ResponseEntity.ok(response);
 	}
 
 }

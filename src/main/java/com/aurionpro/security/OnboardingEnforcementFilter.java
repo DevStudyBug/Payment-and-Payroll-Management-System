@@ -33,16 +33,12 @@ public class OnboardingEnforcementFilter extends OncePerRequestFilter {
 
 	// Employee onboarding paths
 	private static final List<String> EMPLOYEE_ONBOARDING_PATHS = Arrays.asList("/api/v1/employee/document/uploads",
-			"/api/v1/employee/upload-documents", "/api/v1/employee/add-bank-details",
-			"/api/v1/employee/update-bank-details", "/api/v1/employee/reupload/bank-details",
-			"/api/v1/employee/reupload-document", "/api/v1/employee/reupload/rejected-items",
-			"/api/v1/employee/onboarding-status", "/api/v1/employee/profile", "/api/v1/employee/bank-details");
+			"/api/v1/employee/add-bank-details", "/api/v1/employee/reupload/bank-details",
+			"/api/v1/employee/reupload-document", "/api/v1/employee/onboarding-status");
 
 	// Organization onboarding paths
-	private static final List<String> ORG_ONBOARDING_PATHS = Arrays.asList("/api/v1/org/upload-documents",
-			"/api/v1/org/add-bank-details", "/api/v1/org/update-bank-details", "/api/v1/org/reupload/bank-details",
-			"/api/v1/org/reupload/document", "/api/v1/org/onboarding-status", "/api/v1/org/profile",
-			"/api/v1/org/documents", "/api/v1/org/bank-details");
+	private static final List<String> ORG_ONBOARDING_PATHS = Arrays.asList("/api/v1/org/upload-document",
+			"/api/v1/org/add-bank-details",  "/api/v1/org/bank/reupload","/api/v1/org/onboarding-status","/api/v1/org/documents");
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)

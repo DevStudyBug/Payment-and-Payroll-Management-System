@@ -169,7 +169,7 @@ public class AuthServiceImplementation implements AuthService {
 			}
 		}
 
-		// Generate unique username (e.g., firstName.lastName)
+		// Generate unique username 
 		String baseUsername = (request.getFirstName() + "." + request.getLastName()).toLowerCase();
 		String username = generateUniqueUsername(baseUsername, org.getOrgId());
 
@@ -327,7 +327,7 @@ public class AuthServiceImplementation implements AuthService {
 			throw new InvalidOperationException("No valid employee records found. Errors: " + errors);
 		}
 
-		// Register valid employees using existing logic
+	
 		EmployeeBulkRegisterResponseDto result = registerEmployeesInBulk(org, validEmployees);
 		if (result.getFailedRegistrations() == null)
 			result.setFailedRegistrations(new ArrayList<>());

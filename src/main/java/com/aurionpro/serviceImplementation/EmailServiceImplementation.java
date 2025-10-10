@@ -1,12 +1,19 @@
 package com.aurionpro.serviceImplementation;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import com.aurionpro.entity.EmployeeEntity;
 import com.aurionpro.service.EmailService;
 
+import jakarta.activation.DataSource;
+import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.util.ByteArrayDataSource;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -140,6 +147,115 @@ public class EmailServiceImplementation implements EmailService {
 
 		sendGenericEmail(employee.getUser().getEmail(), subject, body);
 	}
+
+	@Override
+	public void sendPayrollApprovalEmail(String toEmail, Long payrollId, String description) {
+		String subject = "✅ Payroll Approved - ID " + payrollId;
+		String body = """
+				Dear Organization,
+
+				Your payroll request (ID: %d) has been successfully reviewed and approved.
+
+				Description:
+				%s
+
+				Your payroll is now ready for disbursement. Once disbursed, employees will receive their salary slips automatically.
+
+				Thank you for your cooperation.
+
+				Best regards,
+				Bank Admin Team
+				"""
+				.formatted(payrollId, description);
+
+		sendGenericEmail(toEmail, subject, body);
+	}
+
+	@Override
+	public void sendPayrollRejectionEmail(String toEmail, Long payrollId, String reason) {
+		String subject = "⚠️ Payroll Rejected - ID " + payrollId;
+		String body = """
+				Dear Organization,
+
+				Your payroll request (ID: %d) has been rejected.
+
+				Reason:
+				%s
+
+				Please review the remarks and resubmit once corrections are made.
+
+				Regards,
+				Bank Admin Team
+				""".formatted(payrollId, reason);
+
+		sendGenericEmail(toEmail, subject, body);
+	}
+
+	@Override
+	public void sendPayrollDisbursedEmail(String toEmail, String orgName, Long payrollId, double totalAmount,
+			String status, LocalDateTime approvalDate) {
+
+		String subject = "💰 Payroll Disbursed Successfully - ID " + payrollId;
+
+		String body = String.format(
+				"""
+						Dear %s Team,
+
+						We’re pleased to inform you that your payroll request (ID: %d) has been successfully disbursed.
+
+						📅 Disbursement Date: %s
+						💰 Total Amount: ₹%.2f
+						🧾 Status: %s
+
+						Salary slips have been generated and emailed to all respective employees automatically.
+
+						You can view payroll details, transaction records, and disbursement history anytime in your organization dashboard.
+
+						If you notice any discrepancies or missing payments, please contact the payroll support team immediately.
+
+						Best regards,
+						AurionPro Payroll & Banking Team
+						""",
+				orgName, payrollId, approvalDate.format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm")), totalAmount,
+				status);
+
+		sendGenericEmail(toEmail, subject, body);
+	}
+	@Override
+	public void sendSalarySlipEmail(EmployeeEntity employee, double netSalary, byte[] pdf, String month) {
+	    try {
+	        MimeMessage mimeMessage = mailSender.createMimeMessage();
+	        MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);
+	        helper.setFrom(FROM_EMAIL);
+	        helper.setTo(employee.getUser().getEmail());
+	        helper.setSubject("💼 Salary Slip - " + month);
+
+	        helper.setText(String.format("""
+	                Dear %s,
+
+	                Your salary for %s has been successfully credited to your registered bank account.
+
+	                Please find attached your official salary slip for the month.
+
+	                💰 Net Salary: ₹%.2f
+
+	                For any queries, kindly contact HR.
+
+	                Regards,
+	                Payroll Department
+	                """, employee.getFirstName(), month, netSalary));
+
+	        DataSource dataSource = new ByteArrayDataSource(pdf, "application/pdf");
+	        helper.addAttachment("SalarySlip_" + month + ".pdf", dataSource);
+
+	        mailSender.send(mimeMessage);
+
+	    } catch (Exception e) {
+	        System.err.println("⚠️ Failed to send salary slip email to "
+	                + employee.getUser().getEmail() + ": " + e.getMessage());
+	    }
+	}
+
 
 	public void sendGenericEmail(String toEmail, String subject, String body) {
 		SimpleMailMessage message = new SimpleMailMessage();

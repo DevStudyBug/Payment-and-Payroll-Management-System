@@ -100,4 +100,5 @@ public class SalaryTemplateEntity {
 
 	@OneToMany(mappedBy = "template", cascade = CascadeType.ALL)
 	private List<EmployeeSalaryEntity> employeeSalaries = new ArrayList<>();
+	
 }

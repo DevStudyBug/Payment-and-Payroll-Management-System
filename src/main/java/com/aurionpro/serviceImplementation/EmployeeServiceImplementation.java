@@ -176,7 +176,7 @@ public class EmployeeServiceImplementation implements EmployeeService {
 		updateEmployeeStatus(emp);
 
 		return EmployeeBankDetailsResponseDto.builder().employeeId(emp.getEmployeeId())
-				.accountHolderName(bankDetails.getAccountHolderName())
+				.accountHolderName(bankDetails.getAccountHolderName()).bankName(bankDetails.getBankName()).verificationStatus(emp.getStatus())
 				.message("Bank details added successfully. Status: " + bankDetails.getVerificationStatus()).build();
 	}
 

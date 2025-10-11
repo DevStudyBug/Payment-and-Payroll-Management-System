@@ -9,6 +9,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import com.aurionpro.entity.EmployeeEntity;
+import com.aurionpro.entity.OrganizationEntity;
 import com.aurionpro.service.EmailService;
 
 import jakarta.activation.DataSource;
@@ -49,6 +50,23 @@ public class EmailServiceImplementation implements EmailService {
 		message.setText(body);
 
 		mailSender.send(message);
+	}
+
+	@Override
+	public void sendBankAdminVerificationEmail(OrganizationEntity org) {
+		String subject = "Organization Verified - Payment & Payroll Portal";
+		String body = """
+				Dear %s,
+
+				Congratulations! Your organization "%s" has been successfully verified by the bank admin.
+
+				You can now access all features of the Payment & Payroll Portal.
+
+				Regards,
+				Payment & Payroll Team
+				""".formatted(org.getOrgName(), org.getOrgName());
+
+		sendGenericEmail(org.getEmail(), subject, body);
 	}
 
 	public void sendVerificationEmail(String toEmail, String username, String tempPassword, String verificationLink) {
@@ -328,6 +346,94 @@ public class EmailServiceImplementation implements EmailService {
 				adminResponse != null ? adminResponse : "No additional comments provided.");
 
 		sendGenericEmail(employee.getUser().getEmail(), subject, body);
+	}
+
+	@Override
+	public void sendBankDetailsVerifiedEmail(OrganizationEntity org) {
+		String subject = "Bank Details Verified - Payment & Payroll Portal";
+		String body = """
+				Dear %s,
+
+				Your bank details have been successfully verified by the bank admin.
+
+				Regards,
+				Payment & Payroll Team
+				""".formatted(org.getOrgName());
+
+		sendGenericEmail(org.getEmail(), subject, body);
+	}
+
+	@Override
+	public void sendBankAdminRejectionEmail(OrganizationEntity org, String remarks) {
+		String subject = "Organization Rejected - Payment & Payroll Portal";
+		String body = """
+				Dear %s,
+
+				We regret to inform you that your organization "%s" has been rejected by the bank admin.
+
+				Reason for rejection:
+				%s
+
+				Regards,
+				Payment & Payroll Team
+				""".formatted(org.getOrgName(), org.getOrgName(), remarks);
+
+		sendGenericEmail(org.getEmail(), subject, body);
+	}
+
+	@Override
+	public void sendDocumentVerifiedEmail(OrganizationEntity org, String fileName) {
+		String subject = "Document Verified - Payment & Payroll Portal";
+		String body = """
+				Dear %s,
+
+				Your document "%s" has been verified successfully by the bank admin.
+
+				Regards,
+				Payment & Payroll Team
+				""".formatted(org.getOrgName(), fileName);
+
+		sendGenericEmail(org.getEmail(), subject, body);
+	}
+
+	@Override
+	public void sendBankDetailsRejectedEmail(OrganizationEntity org, String reason) {
+		String subject = "Bank Details Rejected - Payment & Payroll Portal";
+		String body = """
+				Dear %s,
+
+				Your bank details have been rejected by the bank admin.
+
+				Reason:
+				%s
+
+				Please update the bank details and submit again for verification.
+
+				Regards,
+				Payment & Payroll Team
+				""".formatted(org.getOrgName(), reason);
+
+		sendGenericEmail(org.getEmail(), subject, body);
+	}
+
+	@Override
+	public void sendDocumentRejectedEmail(OrganizationEntity org, String fileName, String reason) {
+		String subject = "Document Rejected - Payment & Payroll Portal";
+		String body = """
+				Dear %s,
+
+				Your document "%s" has been rejected by the bank admin.
+
+				Reason:
+				%s
+
+				Please re-upload the corrected document for verification.
+
+				Regards,
+				Payment & Payroll Team
+				""".formatted(org.getOrgName(), fileName, reason);
+
+		sendGenericEmail(org.getEmail(), subject, body);
 	}
 
 	public void sendGenericEmail(String toEmail, String subject, String body) {

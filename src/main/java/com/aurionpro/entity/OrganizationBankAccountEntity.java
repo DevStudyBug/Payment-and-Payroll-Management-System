@@ -56,7 +56,7 @@ public class OrganizationBankAccountEntity {
 
 	@Column(name = "verified_by", length = 100)
 	private String verifiedBy; // Bank admin email
-
+	private String remarks;
 	@CreationTimestamp
 	@Column(name = "created_at", updatable = false)
 	private LocalDateTime createdAt;

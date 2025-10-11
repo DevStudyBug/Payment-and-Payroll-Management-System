@@ -60,7 +60,7 @@ public class OrganizationEntity {
 
 	@NotBlank
 	private String status; // PENDING / VERIFIED / REJECTED
-
+	private String remarks;
 	@OneToOne(mappedBy = "organization", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
 	private OrganizationBankAccountEntity bankAccount;
 

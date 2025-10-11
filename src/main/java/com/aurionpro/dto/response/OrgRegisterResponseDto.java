@@ -15,4 +15,5 @@ public class OrgRegisterResponseDto {
 	private String email;
 	private String message;
 	private String status;
+	
 }

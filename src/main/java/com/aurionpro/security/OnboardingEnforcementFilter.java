@@ -32,9 +32,9 @@ public class OnboardingEnforcementFilter extends OncePerRequestFilter {
 	private static final List<String> PUBLIC_PATHS = Arrays.asList("/api/v1/auth", "/test-upload", "/swagger-ui");
 
 	// Employee onboarding paths
-	private static final List<String> EMPLOYEE_ONBOARDING_PATHS = Arrays.asList("/api/v1/employee/document/uploads",
-			"/api/v1/employee/add-bank-details", "/api/v1/employee/reupload/bank-details",
-			"/api/v1/employee/reupload-document", "/api/v1/employee/onboarding-status");
+	private static final List<String> EMPLOYEE_ONBOARDING_PATHS = Arrays.asList("/api/v1/employees/document/uploads",
+			"/api/v1/employees/add-bank-details", "/api/v1/employees/reupload/bank-details",
+			"/api/v1/employees/reupload-document", "/api/v1/employees/onboarding-status");
 
 	// Organization onboarding paths
 	private static final List<String> ORG_ONBOARDING_PATHS = Arrays.asList("/api/v1/org/upload-document",

@@ -5,8 +5,8 @@ import org.modelmapper.convention.MatchingStrategies;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.aurionpro.dto.request.OrgRegisterRequestDto;
-import com.aurionpro.entity.OrganizationEntity;
+import com.aurionpro.dto.response.ConcernResponseDto;
+import com.aurionpro.entity.ConcernEntity;
 
 @Configuration
 public class ModelMapperConfig {

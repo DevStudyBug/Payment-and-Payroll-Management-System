@@ -26,4 +26,13 @@ public interface EmailService {
 
 	public void sendSalarySlipEmail(EmployeeEntity employee, double netSalary, byte[] pdf, String month);
 
+	// Concern-related methods
+	void sendConcernSubmissionEmail(EmployeeEntity employee, String ticketNumber, String category, String priority,
+			String description);
+
+	void sendConcernNotificationToHR(String hrEmail, EmployeeEntity employee, String ticketNumber, String category,
+			String priority, String description);
+
+	void sendConcernStatusUpdateEmail(EmployeeEntity employee, String ticketNumber, String newStatus,
+			String adminResponse);
 }

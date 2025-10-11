@@ -221,41 +221,114 @@ public class EmailServiceImplementation implements EmailService {
 
 		sendGenericEmail(toEmail, subject, body);
 	}
+
 	@Override
 	public void sendSalarySlipEmail(EmployeeEntity employee, double netSalary, byte[] pdf, String month) {
-	    try {
-	        MimeMessage mimeMessage = mailSender.createMimeMessage();
-	        MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);
-	        helper.setFrom(FROM_EMAIL);
-	        helper.setTo(employee.getUser().getEmail());
-	        helper.setSubject("💼 Salary Slip - " + month);
+		try {
+			MimeMessage mimeMessage = mailSender.createMimeMessage();
+			MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);
+			helper.setFrom(FROM_EMAIL);
+			helper.setTo(employee.getUser().getEmail());
+			helper.setSubject("💼 Salary Slip - " + month);
 
-	        helper.setText(String.format("""
-	                Dear %s,
+			helper.setText(String.format("""
+					Dear %s,
 
-	                Your salary for %s has been successfully credited to your registered bank account.
+					Your salary for %s has been successfully credited to your registered bank account.
 
-	                Please find attached your official salary slip for the month.
+					Please find attached your official salary slip for the month.
 
-	                💰 Net Salary: ₹%.2f
+					💰 Net Salary: ₹%.2f
 
-	                For any queries, kindly contact HR.
+					For any queries, kindly contact HR.
 
-	                Regards,
-	                Payroll Department
-	                """, employee.getFirstName(), month, netSalary));
+					Regards,
+					Payroll Department
+					""", employee.getFirstName(), month, netSalary));
 
-	        DataSource dataSource = new ByteArrayDataSource(pdf, "application/pdf");
-	        helper.addAttachment("SalarySlip_" + month + ".pdf", dataSource);
+			DataSource dataSource = new ByteArrayDataSource(pdf, "application/pdf");
+			helper.addAttachment("SalarySlip_" + month + ".pdf", dataSource);
 
-	        mailSender.send(mimeMessage);
+			mailSender.send(mimeMessage);
 
-	    } catch (Exception e) {
-	        System.err.println("⚠️ Failed to send salary slip email to "
-	                + employee.getUser().getEmail() + ": " + e.getMessage());
-	    }
+		} catch (Exception e) {
+			System.err.println(
+					"⚠️ Failed to send salary slip email to " + employee.getUser().getEmail() + ": " + e.getMessage());
+		}
 	}
 
+	@Override
+	public void sendConcernSubmissionEmail(EmployeeEntity employee, String ticketNumber, String category,
+			String priority, String description) {
+		String subject = "📝 Concern Submitted - Ticket #" + ticketNumber;
+		String body = String.format("""
+				Dear %s,
+
+				Your concern has been successfully submitted.
+
+				📋 Ticket ID: %s
+				🏷 Category: %s
+				⚡ Priority: %s
+
+				Concern Description:
+				%s
+
+				Our HR team will review your concern and get back to you soon.
+
+				Regards,
+				AurionPro HR Support
+				""", employee.getFirstName(), ticketNumber, category, priority, description);
+
+		sendGenericEmail(employee.getUser().getEmail(), subject, body);
+	}
+
+	@Override
+	public void sendConcernNotificationToHR(String hrEmail, EmployeeEntity employee, String ticketNumber,
+			String category, String priority, String description) {
+		String subject = "📨 New Concern Raised - Ticket #" + ticketNumber;
+		String body = String.format("""
+				Hello HR Team,
+
+				A new concern has been raised by an employee.
+
+				👤 Employee: %s %s
+				🧾 Ticket: %s
+				🏷 Category: %s
+				⚡ Priority: %s
+
+				Description:
+				%s
+
+				Please review and respond in the Admin Concern Dashboard.
+
+				Regards,
+				AurionPro System
+				""", employee.getFirstName(), employee.getLastName(), ticketNumber, category, priority, description);
+
+		sendGenericEmail(hrEmail, subject, body);
+	}
+
+	@Override
+	public void sendConcernStatusUpdateEmail(EmployeeEntity employee, String ticketNumber, String newStatus,
+			String adminResponse) {
+		String subject = "🔔 Concern Status Update - Ticket #" + ticketNumber;
+		String body = String.format("""
+				Dear %s,
+
+				Your concern (Ticket ID: %s) status has been updated.
+
+				🧾 New Status: %s
+				💬 Admin Response: %s
+
+				You can view full details in your Employee Portal under 'My Concerns'.
+
+				Regards,
+				AurionPro HR Team
+				""", employee.getFirstName(), ticketNumber, newStatus,
+				adminResponse != null ? adminResponse : "No additional comments provided.");
+
+		sendGenericEmail(employee.getUser().getEmail(), subject, body);
+	}
 
 	public void sendGenericEmail(String toEmail, String subject, String body) {
 		SimpleMailMessage message = new SimpleMailMessage();

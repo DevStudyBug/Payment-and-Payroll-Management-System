@@ -1,55 +1,59 @@
 package com.aurionpro.entity;
 
 import java.time.LocalDateTime;
+import jakarta.persistence.*;
+import lombok.*;
 
-import org.hibernate.annotations.CreationTimestamp;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+@Entity
+@Table(name = "employee_concerns")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "concerns")
+@Builder
 public class ConcernEntity {
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long concernId;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "employeeId", nullable = false)
+	@JoinColumn(name = "employee_id", nullable = false)
 	private EmployeeEntity employee;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "orgId", nullable = false)
+	@JoinColumn(name = "org_id", nullable = false)
 	private OrganizationEntity organization;
 
-	@NotBlank
-	@Column(columnDefinition = "TEXT")
+	@Column(nullable = false)
+	private String category;
+
+	@Column(nullable = false)
+	private String priority;
+
+	@Column(nullable = false, length = 1000)
 	private String description;
 
-	@OneToOne
-	@JoinColumn(name = "documentId")
-	private DocumentEntity attachmentDoc;
+	private String attachmentUrl;
 
-	@NotBlank
+	@Column(nullable = false)
 	private String status;
 
-	@CreationTimestamp
-	private LocalDateTime createdAt;
+	@Column(unique = true, updatable = false)
+	private String ticketNumber;
 
-	private LocalDateTime resolvedAt;
+	private String adminResponse;
+
+	private LocalDateTime createdAt;
+	private LocalDateTime updatedAt;
+
+	@PrePersist
+	public void onCreate() {
+		this.createdAt = LocalDateTime.now();
+		this.updatedAt = LocalDateTime.now();
+	}
+
+	@PreUpdate
+	public void onUpdate() {
+		this.updatedAt = LocalDateTime.now();
+	}
 }

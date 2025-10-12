@@ -22,6 +22,7 @@ public class ConcernConstants {
 	public static final String STATUS_RESOLVED = "RESOLVED";
 	public static final String STATUS_REJECTED = "REJECTED";
 	public static final String STATUS_CLOSED = "CLOSED";
+	public static final String STATUS_REOPENED = "REOPENED";
 
 	private ConcernConstants() {
 		throw new IllegalStateException("Utility class");

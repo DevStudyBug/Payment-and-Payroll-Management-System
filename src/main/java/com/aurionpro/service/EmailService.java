@@ -10,6 +10,7 @@ public interface EmailService {
 
 	public void sendVerificationEmail(String toEmail, String username, String tempPassword, String verificationLink);
 
+	////////////////
 	public void sendBankDetailsVerifiedEmail(OrganizationEntity org);
 
 	public void sendBankAdminRejectionEmail(OrganizationEntity org, String remarks);
@@ -47,5 +48,9 @@ public interface EmailService {
 
 	public void sendConcernStatusUpdateEmail(EmployeeEntity employee, String ticketNumber, String newStatus,
 			String adminResponse);
+
+	public void sendConcernReopenedNotification(String email, EmployeeEntity emp, String ticketNumber, String reason);
+
+	public void sendConcernClosedNotification(String email, EmployeeEntity employee, String ticketNumber);
 
 }

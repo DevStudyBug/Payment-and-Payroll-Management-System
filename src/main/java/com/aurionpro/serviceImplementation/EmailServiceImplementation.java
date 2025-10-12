@@ -436,6 +436,44 @@ public class EmailServiceImplementation implements EmailService {
 		sendGenericEmail(org.getEmail(), subject, body);
 	}
 
+	@Override
+	public void sendConcernReopenedNotification(String email, EmployeeEntity emp, String ticketNumber, String reason) {
+		String subject = "Concern Reopened - Ticket " + ticketNumber;
+		String body = String.format("""
+				Dear HR Team,
+
+				The concern #%s raised by %s has been reopened by the employee.
+
+				Reason: %s
+
+				Please review the issue again.
+
+				Regards,
+				Payroll & Concern Management System
+				""", ticketNumber, emp.getFirstName() + " " + emp.getLastName(), reason);
+
+		sendGenericEmail(email, subject, body);
+
+	}
+
+	@Override
+	public void sendConcernClosedNotification(String email, EmployeeEntity emp, String ticketNumber) {
+		String subject = "Concern Closed - Ticket " + ticketNumber;
+		String body = String.format("""
+				Dear HR Team,
+
+				The concern #%s raised by %s has been marked as CLOSED by the employee.
+
+				This issue is now finalized in the system.
+
+				Regards,
+				Payroll & Concern Management System
+				""", ticketNumber, emp.getFirstName() + " " + emp.getLastName());
+
+		sendGenericEmail(email, subject, body);
+
+	}
+
 	public void sendGenericEmail(String toEmail, String subject, String body) {
 		SimpleMailMessage message = new SimpleMailMessage();
 		message.setFrom(FROM_EMAIL);
@@ -444,4 +482,5 @@ public class EmailServiceImplementation implements EmailService {
 		message.setText(body);
 		mailSender.send(message);
 	}
+
 }

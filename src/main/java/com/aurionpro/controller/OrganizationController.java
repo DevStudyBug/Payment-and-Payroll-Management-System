@@ -3,6 +3,7 @@ package com.aurionpro.controller;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,6 +25,7 @@ import com.aurionpro.dto.request.DocumentUploadRequestDto;
 import com.aurionpro.dto.request.DocumentVerificationRequestDto;
 import com.aurionpro.dto.request.EmployeeRegisterRequestDto;
 import com.aurionpro.dto.request.SalaryTemplateRequestDto;
+import com.aurionpro.dto.response.ConcernResponseDto;
 import com.aurionpro.dto.response.DesignationResponseDto;
 import com.aurionpro.dto.response.EmployeeBulkRegisterResponseDto;
 import com.aurionpro.dto.response.EmployeeDetailResponseDto;
@@ -42,6 +44,7 @@ import com.aurionpro.entity.DesignationEntity;
 import com.aurionpro.service.AuthService;
 import com.aurionpro.service.DesignationService;
 import com.aurionpro.service.EmployeeService;
+import com.aurionpro.service.OrgAdminConcernService;
 import com.aurionpro.service.OrgService;
 import com.aurionpro.service.OrganizationOnboardingService;
 import com.aurionpro.service.PayrollService;
@@ -64,6 +67,7 @@ public class OrganizationController {
 	private final AuthService authService;
 	private final OrgService orgService;
 	private final PayrollService payrollService;
+	private final OrgAdminConcernService adminConcernService;
 
 	@PreAuthorize("hasRole('ORG_ADMIN')")
 	@PostMapping(value = "/upload-document", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -222,14 +226,52 @@ public class OrganizationController {
 	@PostMapping("/payroll/generate/{month}")
 	public ResponseEntity<?> generatePayroll(Authentication authentication, @PathVariable String month) {
 		PayrollGenerateResponseDto response = payrollService.generatePayroll(authentication, month);
-	    return ResponseEntity.ok(response);
+		return ResponseEntity.ok(response);
 	}
 
 	@PreAuthorize("hasRole('ORG_ADMIN')")
 	@PostMapping("/payroll/submit/{month}")
 	public ResponseEntity<?> submitPayrollToBank(Authentication authentication, @PathVariable String month) {
 		PayrollSubmitResponseDto response = payrollService.submitPayrollToBank(authentication, month);
-	    return ResponseEntity.ok(response);
+		return ResponseEntity.ok(response);
 	}
 
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@GetMapping("/concerns")
+	public ResponseEntity<Page<ConcernResponseDto>> getAllConcerns(@RequestParam(required = false) Long orgId,
+			@RequestParam(required = false) String status, @RequestParam(required = false) String priority,
+			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+
+		return ResponseEntity.ok(adminConcernService.getAllConcerns(orgId, status, priority, page, size));
+	}
+
+	// View single concern
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@GetMapping("/concerns/{ticketNumber}")
+	public ResponseEntity<ConcernResponseDto> getConcern(@PathVariable String ticketNumber) {
+		return ResponseEntity.ok(adminConcernService.getConcernByTicket(ticketNumber));
+	}
+
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@PutMapping("/concerns/{ticketNumber}/respond")
+	public ResponseEntity<ConcernResponseDto> respondToConcern(@PathVariable String ticketNumber,
+			@RequestBody String response) {
+		return ResponseEntity.ok(adminConcernService.respondToConcern(ticketNumber, response));
+	}
+
+	// Resolve
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@PutMapping("/concerns/{ticketNumber}/resolve")
+	public ResponseEntity<ConcernResponseDto> resolveConcern(@PathVariable String ticketNumber,
+			@RequestBody String response) {
+		return ResponseEntity.ok(adminConcernService.resolveConcern(ticketNumber, response));
+	}
+
+	// Reject
+	@PreAuthorize("hasRole('ORG_ADMIN')")
+	@PutMapping("/concerns/{ticketNumber}/reject")
+	public ResponseEntity<ConcernResponseDto> rejectConcern(@PathVariable String ticketNumber,
+			@RequestBody String response) {
+		return ResponseEntity.ok(adminConcernService.rejectConcern(ticketNumber, response));
+	}
 }

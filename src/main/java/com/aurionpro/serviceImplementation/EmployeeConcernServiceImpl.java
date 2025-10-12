@@ -74,22 +74,15 @@ public class EmployeeConcernServiceImpl implements EmployeeConcernService {
 	public List<ConcernResponseDto> getMyConcerns(String username) {
 		EmployeeEntity emp = employeeRepo.findByUser_Username(username)
 				.orElseThrow(() -> new NotFoundException("Employee not found"));
-		
+
 		return concernRepo.findByEmployeeWithDetails(emp.getEmployeeId()).stream()
-		        .map(c -> ConcernResponseDto.builder()
-		                .concernId(c.getConcernId())
-		                .employeeName(c.getEmployee().getFirstName() + " " + c.getEmployee().getLastName())
-		                .organizationName(c.getOrganization().getOrgName())
-		                .ticketNumber(c.getTicketNumber())
-		                .category(c.getCategory())
-		                .priority(c.getPriority())
-		                .description(c.getDescription())
-		                .status(c.getStatus())
-		                .attachmentUrl(c.getAttachmentUrl())
-		                .createdAt(c.getCreatedAt())
-		                .updatedAt(c.getUpdatedAt())
-		                .build())
-		        .collect(Collectors.toList());
+				.map(c -> ConcernResponseDto.builder().concernId(c.getConcernId())
+						.employeeName(c.getEmployee().getFirstName() + " " + c.getEmployee().getLastName())
+						.organizationName(c.getOrganization().getOrgName()).ticketNumber(c.getTicketNumber())
+						.category(c.getCategory()).priority(c.getPriority()).description(c.getDescription())
+						.status(c.getStatus()).attachmentUrl(c.getAttachmentUrl()).createdAt(c.getCreatedAt())
+						.updatedAt(c.getUpdatedAt()).build())
+				.collect(Collectors.toList());
 
 	}
 
@@ -97,10 +90,9 @@ public class EmployeeConcernServiceImpl implements EmployeeConcernService {
 	public ConcernResponseDto getConcernByTicket(String username, String ticketNumber) {
 		EmployeeEntity emp = employeeRepo.findByUser_Username(username)
 				.orElseThrow(() -> new NotFoundException("Employee not found"));
-		ConcernEntity concern = concernRepo.findByTicketNumber(ticketNumber);
-		if (concern == null || !concern.getEmployee().getUser().getUsername().equals(username)) {
-			throw new NotFoundException("Concern not found or unauthorized access");
-		}
+		ConcernEntity concern = concernRepo.findByTicketNumber(ticketNumber)
+				.orElseThrow(() -> new NotFoundException("Concern not found"));
+
 		return ConcernResponseDto.builder().concernId(concern.getConcernId()).ticketNumber(concern.getTicketNumber())
 				.category(concern.getCategory()).priority(concern.getPriority()).description(concern.getDescription())
 				.status(concern.getStatus()).adminResponse(concern.getAdminResponse())
@@ -112,14 +104,26 @@ public class EmployeeConcernServiceImpl implements EmployeeConcernService {
 
 	// Close Concern
 	public ConcernResponseDto acknowledgeConcern(String username, String ticketNumber) {
-		ConcernEntity concern = concernRepo.findByTicketNumber(ticketNumber);
-		if (concern == null || !concern.getEmployee().getUser().getUsername().equals(username)) {
-			throw new NotFoundException("Concern not found or unauthorized access");
+		ConcernEntity concern = concernRepo.findByTicketNumber(ticketNumber)
+				.orElseThrow(() -> new NotFoundException("Concern not found"));
+
+		if (!concern.getEmployee().getUser().getUsername().equals(username)) {
+			throw new NotFoundException("Unauthorized access to concern");
 		}
 
+		if (!ConcernConstants.STATUS_RESOLVED.equalsIgnoreCase(concern.getStatus())
+				&& !ConcernConstants.STATUS_REJECTED.equalsIgnoreCase(concern.getStatus())) {
+			throw new IllegalStateException("Only resolved or rejected concerns can be closed by the employee.");
+		}
+
+		// Update status to CLOSED
 		concern.setStatus(ConcernConstants.STATUS_CLOSED);
 		concern.setUpdatedAt(LocalDateTime.now());
 		concernRepo.save(concern);
+
+		// Send email to HR
+		emailService.sendConcernClosedNotification(concern.getOrganization().getEmail(), concern.getEmployee(),
+				concern.getTicketNumber());
 
 		return ConcernResponseDto.builder().concernId(concern.getConcernId()).ticketNumber(concern.getTicketNumber())
 				.category(concern.getCategory()).priority(concern.getPriority()).description(concern.getDescription())
@@ -130,11 +134,44 @@ public class EmployeeConcernServiceImpl implements EmployeeConcernService {
 				.updatedAt(concern.getUpdatedAt()).build();
 	}
 
+	
+
+	// Reopen
+	public ConcernResponseDto reopenConcern(String username, String ticketNumber, String reason) {
+		EmployeeEntity emp = employeeRepo.findByUser_Username(username)
+				.orElseThrow(() -> new NotFoundException("Employee not found"));
+
+		ConcernEntity concern = concernRepo.findByTicketNumber(ticketNumber)
+				.orElseThrow(() -> new NotFoundException("Concern not found"));
+
+		if (!concern.getEmployee().getUser().getUsername().equals(username)) {
+			throw new NotFoundException("Unauthorized access to concern");
+		}
+
+		if (!ConcernConstants.STATUS_RESOLVED.equalsIgnoreCase(concern.getStatus())
+				&& !ConcernConstants.STATUS_REJECTED.equalsIgnoreCase(concern.getStatus())) {
+			throw new IllegalStateException("Only resolved or rejected concerns can be reopened.");
+		}
+
+		concern.setStatus(ConcernConstants.STATUS_REOPENED);
+		concern.setUpdatedAt(LocalDateTime.now());
+		concernRepo.save(concern);
+
+		// email send orgAdmin
+		emailService.sendConcernReopenedNotification(concern.getOrganization().getEmail(), emp,
+				concern.getTicketNumber(), reason);
+
+		return ConcernResponseDto.builder().concernId(concern.getConcernId()).ticketNumber(concern.getTicketNumber())
+				.category(concern.getCategory()).priority(concern.getPriority()).description(concern.getDescription())
+				.status(concern.getStatus()).adminResponse(concern.getAdminResponse())
+				.attachmentUrl(concern.getAttachmentUrl()).employeeName(emp.getFirstName() + " " + emp.getLastName())
+				.organizationName(concern.getOrganization().getOrgName()).createdAt(concern.getCreatedAt())
+				.updatedAt(concern.getUpdatedAt()).build();
+	}
 	private void sendEmployeeEmail(EmployeeEntity emp, ConcernEntity concern) {
 		emailService.sendConcernSubmissionEmail(emp, concern.getTicketNumber(), concern.getCategory(),
 				concern.getPriority(), concern.getDescription());
 	}
-
 	private void sendAdminEmail(OrganizationEntity org, EmployeeEntity emp, ConcernEntity concern) {
 
 		String hrEmail = org.getEmail();

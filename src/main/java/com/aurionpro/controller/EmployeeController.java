@@ -9,6 +9,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,6 +46,7 @@ public class EmployeeController {
 	private final EmployeeDashboardService employeeDashboardService;
 	private final EmployeeConcernServiceImpl concernService;
 	private final ObjectMapper objectMapper;
+
 	@PreAuthorize("hasRole('EMPLOYEE')")
 	@PostMapping("/document/uploads")
 
@@ -148,15 +151,14 @@ public class EmployeeController {
 			@RequestPart("data") String requestData,
 			@RequestPart(value = "file", required = false) MultipartFile file) {
 		try {
-			
+
 			ConcernRequestDto request = objectMapper.readValue(requestData, ConcernRequestDto.class);
 
-			
 			return ResponseEntity.ok(concernService.raiseConcern(authentication.getName(), request, file));
 		} catch (Exception e) {
 			throw new RuntimeException("Error parsing request data: " + e.getMessage(), e);
 		}
-		
+
 	}
 
 	@PreAuthorize("hasRole('EMPLOYEE')")
@@ -178,4 +180,12 @@ public class EmployeeController {
 			@PathVariable String ticketNumber) {
 		return ResponseEntity.ok(concernService.acknowledgeConcern(authentication.getName(), ticketNumber));
 	}
+
+	@PreAuthorize("hasRole('EMPLOYEE')")
+	@PutMapping("/concerns/{ticketNumber}/reopen")
+	public ResponseEntity<ConcernResponseDto> reopenConcern(Authentication authentication,
+			@PathVariable String ticketNumber, @RequestBody String reason) {
+		return ResponseEntity.ok(concernService.reopenConcern(authentication.getName(), ticketNumber, reason));
+	}
+
 }

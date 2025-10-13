@@ -172,58 +172,45 @@ public class BankAdminServiceImplementation implements BankAdminService {
 
 		return "Bank details rejected. Reason: " + reason;
 	}
-	
-	//get all  org
-	 @Override
-	    public List<OrgRegisterResponseDto> getAllOrganizations() {
-	        return organizationRepo.findAll()
-	                .stream()
-	                .map(this::mapToDto)
-	                .collect(Collectors.toList());
-	    }
 
-	    @Override
-	    public List<OrgRegisterResponseDto> getOrganizationsByStatus(String status) {
-	        return organizationRepo.findAll()
-	                .stream()
-	                .filter(org -> org.getStatus() != null && org.getStatus().equalsIgnoreCase(status))
-	                .map(this::mapToDto)
-	                .collect(Collectors.toList());
-	    }
-	    // 🔹 FIXED: Added docId and docName to document mapping
-	    private OrgRegisterResponseDto mapToDto(OrganizationEntity org) {
-	        List<OrganizationDocumentDto> docs = org.getDocuments() != null 
-	                ? org.getDocuments().stream()
-	                    .map(doc -> OrganizationDocumentDto.builder()
-	                            .docId(doc.getDocumentId())  // ✅ ADDED THIS
-	                            .docName(doc.getFileType())  // ✅ ADDED THIS
-	                            .fileName(doc.getFileName())
-	                            .fileUrl(doc.getFileUrl())
-	                            .fileType(doc.getFileType())
-	                            .status(doc.getStatus() != null ? doc.getStatus() : "PENDING")
-	                            .uploadedAt(doc.getUploadedAt())
-	                            .verifiedAt(doc.getVerifiedAt())
-	                            .build())
-	                    .collect(Collectors.toList())
-	                : List.of();
+	// get all org
+	@Override
+	public List<OrgRegisterResponseDto> getAllOrganizations() {
+		return organizationRepo.findAll().stream().map(this::mapToDto).collect(Collectors.toList());
+	}
 
-	        String bankStatus = org.getBankAccount() != null
-	                ? org.getBankAccount().getVerificationStatus()
-	                : "NOT_SUBMITTED";
+	@Override
+	public List<OrgRegisterResponseDto> getOrganizationsByStatus(String status) {
+		return organizationRepo.findAll().stream()
+				.filter(org -> org.getStatus() != null && org.getStatus().equalsIgnoreCase(status)).map(this::mapToDto)
+				.collect(Collectors.toList());
+	}
 
-	        String bankRemarks = org.getBankAccount() != null
-	                ? org.getBankAccount().getRemarks()
-	                : null;
+	private OrgRegisterResponseDto mapToDto(OrganizationEntity org) {
+		List<OrganizationDocumentDto> docs = org.getDocuments() != null ? org.getDocuments().stream()
+				.map(doc -> OrganizationDocumentDto.builder().docId(doc.getDocumentId()).docName(doc.getFileType())
+						.fileName(doc.getFileName()).fileUrl(doc.getFileUrl()).fileType(doc.getFileType())
+						.status(doc.getStatus() != null ? doc.getStatus() : "PENDING").uploadedAt(doc.getUploadedAt())
+						.verifiedAt(doc.getVerifiedAt()).build())
+				.collect(Collectors.toList()) : List.of();
 
-	        return OrgRegisterResponseDto.builder()
-	                .orgId(org.getOrgId())
-	                .orgName(org.getOrgName())
-	                .email(org.getEmail())
-	                .status(org.getStatus() != null ? org.getStatus() : "PENDING")
-	                .documents(docs)
-	                .bankVerificationStatus(bankStatus)
-	                .bankRemarks(bankRemarks)
-	                .message("Organization record retrieved successfully")
-	                .build();
-	    }
+		OrganizationBankAccountEntity bank = org.getBankAccount();
+
+		String bankStatus = (bank != null && bank.getVerificationStatus() != null) ? bank.getVerificationStatus()
+				: "NOT_SUBMITTED";
+
+		String bankRemarks = (bank != null) ? bank.getRemarks() : null;
+
+		String accountHolderName = bank != null ? bank.getAccountHolderName() : null;
+		String accountNumber = bank != null ? bank.getAccountNumber() : null;
+		String ifscCode = bank != null ? bank.getIfscCode() : null;
+		String bankName = bank != null ? bank.getBankName() : null;
+
+		return OrgRegisterResponseDto.builder().orgId(org.getOrgId()).orgName(org.getOrgName()).email(org.getEmail())
+				.status(org.getStatus() != null ? org.getStatus() : "PENDING").documents(docs)
+				.accountHolderName(accountHolderName).accountNumber(accountNumber).ifscCode(ifscCode).bankName(bankName)
+				.bankVerificationStatus(bankStatus).bankRemarks(bankRemarks)
+				.message("Organization record retrieved successfully").build();
+	}
+
 }

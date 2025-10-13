@@ -28,7 +28,7 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/api/v1/auth/org-register", "/api/v1/auth/verify-email", "/api/v1/auth/login")
 						.permitAll().requestMatchers("/api/v1/org/**").hasAuthority("ORG_ADMIN")
-						.requestMatchers("/api/v1/bank-admin/**").hasRole("BANK_ADMIN")
+						.requestMatchers("/api/v1/bank-admin/**").hasAuthority("BANK_ADMIN")
 						.requestMatchers("/api/v1/employees/**").hasAuthority("EMPLOYEE").anyRequest().authenticated())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authenticationProvider(authenticationProvider)

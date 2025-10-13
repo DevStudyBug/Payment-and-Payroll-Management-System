@@ -222,4 +222,18 @@ public class BankAdminController {
 		PayrollActionResponseDto response = payrollService.disbursePayroll(paymentRequestId);
 		return ResponseEntity.ok(response);
 	}
+	
+	 // ---------------------------
+    // GET: View All Organizations (with optional filter)
+    // ---------------------------
+    @GetMapping("/organizations")
+    public ResponseEntity<List<OrgRegisterResponseDto>> getAllOrganizations(
+            @RequestParam(required = false) String status) {
+
+        List<OrgRegisterResponseDto> orgs = (status != null && !status.isEmpty())
+                ? bankAdminService.getOrganizationsByStatus(status.toUpperCase())
+                : bankAdminService.getAllOrganizations();
+
+        return ResponseEntity.ok(orgs);
+    }
 }

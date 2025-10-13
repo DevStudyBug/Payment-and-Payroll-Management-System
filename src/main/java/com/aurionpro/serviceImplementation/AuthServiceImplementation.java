@@ -143,10 +143,10 @@ public class AuthServiceImplementation implements AuthService {
 						roleNames);
 
 		// Get organization status (if applicable)
-		String Status = (user.getOrganization() != null) ? user.getOrganization().getStatus() : user.getEmployee().getStatus();
+		//String Status = (user.getOrganization() != null) ? user.getOrganization().getStatus() : user.getEmployee().getStatus();
 
 		return LoginResponseDto.builder().token(jwt).userId(user.getUserId()).email(user.getEmail()).roles(roleNames)
-				.status(Status).message("Login successful.").build();
+				.message("Login successful.").build();
 	}
 
 	@Override

@@ -21,4 +21,8 @@ public interface BankAdminService {
     String verifyBankDetails(Long orgId);
 
     String rejectBankDetails(Long orgId, String reason);
+
+	List<OrgRegisterResponseDto> getAllOrganizations();
+
+	List<OrgRegisterResponseDto> getOrganizationsByStatus(String status);
 }

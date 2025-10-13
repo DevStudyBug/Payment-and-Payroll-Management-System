@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -14,9 +15,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -24,30 +24,34 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-
+@Builder
 @Table(name = "vendors", uniqueConstraints = { @UniqueConstraint(columnNames = { "email" }) })
 public class VendorEntity {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long vendorId;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "orgId", nullable = false)
-	private OrganizationEntity organization;
-
-	@NotBlank
+	@Column(nullable = false)
 	private String name;
 
-	@NotBlank
-	private String type; // CLIENT / VENDOR
+	private String contactPerson;
 
-	private String bankAccountNo;
-	private String ifscCode;
-	private String contactNo;
-
-	@Email
 	private String email;
 
+	private String phoneNumber;
+
+	private String address;
+
+	private String bankName;
+	private String bankAccountNumber;
+	private String ifscCode;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "orgId")
+	private OrganizationEntity organization;
 	@OneToMany(mappedBy = "vendor", cascade = CascadeType.ALL)
 	private List<PaymentRequestEntity> paymentRequests = new ArrayList<>();
+	
+	@Column(nullable = false)
+    private boolean deleted = false;
 }

@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.aurionpro.entity.EmployeeEntity;
@@ -210,71 +211,83 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
-	public void sendPayrollDisbursedEmail(String toEmail, String orgName, Long payrollId, double totalAmount,
-			String status, LocalDateTime approvalDate) {
+    @Async("emailTaskExecutor") 
+    public void sendPayrollDisbursedEmail(String toEmail, String orgName, Long payrollId, 
+                                          double totalAmount, String status, 
+                                          LocalDateTime approvalDate) {
+        
+        String subject = "💰 Payroll Disbursed Successfully - ID " + payrollId;
 
-		String subject = "💰 Payroll Disbursed Successfully - ID " + payrollId;
+        String body = String.format(
+            """
+            Dear %s Team,
 
-		String body = String.format(
-				"""
-						Dear %s Team,
+            We're pleased to inform you that your payroll request (ID: %d) has been successfully disbursed.
 
-						We’re pleased to inform you that your payroll request (ID: %d) has been successfully disbursed.
+            📅 Disbursement Date: %s
+            💰 Total Amount: ₹%.2f
+            🧾 Status: %s
 
-						📅 Disbursement Date: %s
-						💰 Total Amount: ₹%.2f
-						🧾 Status: %s
+            Salary slips have been generated and emailed to all respective employees automatically.
 
-						Salary slips have been generated and emailed to all respective employees automatically.
+            You can view payroll details, transaction records, and disbursement history anytime in your organization dashboard.
 
-						You can view payroll details, transaction records, and disbursement history anytime in your organization dashboard.
+            If you notice any discrepancies or missing payments, please contact the payroll support team immediately.
 
-						If you notice any discrepancies or missing payments, please contact the payroll support team immediately.
+            Best regards,
+            AurionPro Payroll & Banking Team
+            """,
+            orgName, payrollId, 
+            approvalDate.format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm")), 
+            totalAmount, status
+        );
 
-						Best regards,
-						AurionPro Payroll & Banking Team
-						""",
-				orgName, payrollId, approvalDate.format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm")), totalAmount,
-				status);
+        try {
+            sendGenericEmail(toEmail, subject, body);
+            System.out.println("✅ Payroll email sent to: " + toEmail);
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send payroll email to " + toEmail + ": " + e.getMessage());
+        }
+    }
 
-		sendGenericEmail(toEmail, subject, body);
-	}
+    @Override
+    @Async("emailTaskExecutor")  
+    public void sendSalarySlipEmail(EmployeeEntity employee, double netSalary, 
+                                    byte[] pdf, String month) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);
+            helper.setFrom(FROM_EMAIL);
+            helper.setTo(employee.getUser().getEmail());
+            helper.setSubject("💼 Salary Slip - " + month);
 
-	@Override
-	public void sendSalarySlipEmail(EmployeeEntity employee, double netSalary, byte[] pdf, String month) {
-		try {
-			MimeMessage mimeMessage = mailSender.createMimeMessage();
-			MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);
-			helper.setFrom(FROM_EMAIL);
-			helper.setTo(employee.getUser().getEmail());
-			helper.setSubject("💼 Salary Slip - " + month);
+            helper.setText(String.format("""
+                Dear %s,
 
-			helper.setText(String.format("""
-					Dear %s,
+                Your salary for %s has been successfully credited to your registered bank account.
 
-					Your salary for %s has been successfully credited to your registered bank account.
+                Please find attached your official salary slip for the month.
 
-					Please find attached your official salary slip for the month.
+                💰 Net Salary: ₹%.2f
 
-					💰 Net Salary: ₹%.2f
+                For any queries, kindly contact HR.
 
-					For any queries, kindly contact HR.
+                Regards,
+                Payroll Department
+                """, employee.getFirstName(), month, netSalary));
 
-					Regards,
-					Payroll Department
-					""", employee.getFirstName(), month, netSalary));
+            DataSource dataSource = new ByteArrayDataSource(pdf, "application/pdf");
+            helper.addAttachment("SalarySlip_" + month + ".pdf", dataSource);
 
-			DataSource dataSource = new ByteArrayDataSource(pdf, "application/pdf");
-			helper.addAttachment("SalarySlip_" + month + ".pdf", dataSource);
+            mailSender.send(mimeMessage);
+            
+            System.out.println("✅ Salary slip sent to: " + employee.getUser().getEmail());
 
-			mailSender.send(mimeMessage);
-
-		} catch (Exception e) {
-			System.err.println(
-					"⚠️ Failed to send salary slip email to " + employee.getUser().getEmail() + ": " + e.getMessage());
-		}
-	}
-
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to send salary slip email to " + 
+                employee.getUser().getEmail() + ": " + e.getMessage());
+        }
+    }
 	@Override
 	public void sendConcernSubmissionEmail(EmployeeEntity employee, String ticketNumber, String category,
 			String priority, String description) {

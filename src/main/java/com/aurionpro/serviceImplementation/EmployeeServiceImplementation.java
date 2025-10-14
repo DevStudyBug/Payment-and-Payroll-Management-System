@@ -133,9 +133,9 @@ public class EmployeeServiceImplementation implements EmployeeService {
 			overallResult = "FAILED";
 		}
 
-		return DocumentUploadResponseDto.builder().employeeId(emp.getEmployeeId()).documentId(null)
-				.currentStatus(emp.getStatus()).uploadedDocuments(uploadedDocs).failedDocuments(failedUploads)
-				.overallResult(overallResult).message(failedUploads.isEmpty() ? "All documents uploaded successfully."
+		return DocumentUploadResponseDto.builder().employeeId(emp.getEmployeeId()).currentStatus(emp.getStatus())
+				.uploadedDocuments(uploadedDocs).failedDocuments(failedUploads).overallResult(overallResult)
+				.message(failedUploads.isEmpty() ? "All documents uploaded successfully."
 						: "Some documents failed to upload. Please check details.")
 				.build();
 	}
@@ -176,7 +176,8 @@ public class EmployeeServiceImplementation implements EmployeeService {
 		updateEmployeeStatus(emp);
 
 		return EmployeeBankDetailsResponseDto.builder().employeeId(emp.getEmployeeId())
-				.accountHolderName(bankDetails.getAccountHolderName()).bankName(bankDetails.getBankName()).verificationStatus(emp.getStatus())
+				.accountHolderName(bankDetails.getAccountHolderName()).bankName(bankDetails.getBankName())
+				.verificationStatus(emp.getStatus())
 				.message("Bank details added successfully. Status: " + bankDetails.getVerificationStatus()).build();
 	}
 
@@ -202,12 +203,12 @@ public class EmployeeServiceImplementation implements EmployeeService {
 		long rejectedDocs = docs.stream().filter(d -> "REJECTED".equalsIgnoreCase(d.getStatus())).count();
 		long pendingDocs = docs.stream().filter(d -> "PENDING".equalsIgnoreCase(d.getStatus())).count();
 
-		double progress = ((double) uploadedCount / totalRequired) * 70; // docs weight 70%
+		double progress = ((double) uploadedCount / totalRequired) * 70; 
 
 		// BANK STATS
 		boolean hasBank = emp.getBankDetails() != null;
 		String bankStatus = hasBank ? emp.getBankDetails().getVerificationStatus() : "NOT_SUBMITTED";
-		progress += hasBank ? 30 : 0; // bank weight 30%
+		progress += hasBank ? 30 : 0; 
 
 		// NEXT STEPS
 		List<OnboardingStepDto> nextSteps = new ArrayList<>();
@@ -395,13 +396,12 @@ public class EmployeeServiceImplementation implements EmployeeService {
 		boolean hasBank = emp.getBankDetails() != null;
 		String bankStatus = hasBank ? emp.getBankDetails().getVerificationStatus() : "NOT_SUBMITTED";
 
-		
 		// All docs approved + bank approved → ACTIVE
 		if (allDocsApproved && "APPROVED".equalsIgnoreCase(bankStatus)) {
 			emp.setStatus("ACTIVE");
 		}
 
-		//  Any doc or bank rejected → REJECTED
+		// Any doc or bank rejected → REJECTED
 		else if (anyDocRejected || "REJECTED".equalsIgnoreCase(bankStatus)) {
 			emp.setStatus("REJECTED");
 		}

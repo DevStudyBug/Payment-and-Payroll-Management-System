@@ -104,7 +104,7 @@ public class PayrollServiceImplementation implements PayrollService {
 			throw new NotFoundException("No active employees available for payroll generation.");
 
 		List<SalaryDisbursementEntity> batch = new ArrayList<>();
-		int batchSize = 50;
+		int batchSize = 10;
 
 		for (EmployeeEntity emp : activeEmployees) {
 			try {
@@ -288,57 +288,50 @@ public class PayrollServiceImplementation implements PayrollService {
 		if (!"APPROVED".equalsIgnoreCase(req.getStatus()))
 			throw new IllegalStateException("Only APPROVED payroll requests can be disbursed.");
 
-		List<SalaryDisbursementEntity> dis = salaryDisbursementRepo.findByPaymentRequest_PaymentId(paymentRequestId);
-		if (dis.isEmpty())
+		List<SalaryDisbursementEntity> disbursements = salaryDisbursementRepo
+				.findByPaymentRequest_PaymentId(paymentRequestId);
+
+		if (disbursements.isEmpty())
 			throw new NotFoundException("No disbursements found for this request.");
 
-		int batchSize = 50;
-		List<SalaryDisbursementEntity> batch = new ArrayList<>();
-
-		for (SalaryDisbursementEntity s : dis) {
-			EmployeeEntity emp = s.getEmployee();
-
+	
+		for (SalaryDisbursementEntity s : disbursements) {
 			s.setStatus("PAID");
 			s.setTransactionDate(LocalDateTime.now());
 			s.setPaymentRefNo("TXN-" + UUID.randomUUID());
 			s.setRemark("Salary credited successfully.");
-
-			try {
-				byte[] pdf = pdfGenerator.generateSalarySlip(emp, s);
-				emailService.sendSalarySlipEmail(emp,
-						emp.getEmployeeSalary().getTemplate().getNetSalary().doubleValue(), pdf, s.getSalaryMonth());
-
-			} catch (Exception e) {
-
-				System.err.println("❌ Error sending salary slip for employee " + emp.getFirstName() + " "
-						+ emp.getLastName() + " (ID: " + emp.getEmployeeId() + "): " + e.getMessage());
-
-				e.printStackTrace();
-
-				s.setRemark("Salary disbursed, but failed to send salary slip email: " + e.getMessage());
-			}
-
-			batch.add(s);
-			if (batch.size() == batchSize) {
-				salaryDisbursementRepo.saveAll(batch);
-				batch.clear();
-			}
 		}
 
-		if (!batch.isEmpty())
-			salaryDisbursementRepo.saveAll(batch);
+		
+		salaryDisbursementRepo.saveAll(disbursements);
 
+		
 		req.setStatus("PAID");
 		req.setApprovalDate(LocalDateTime.now());
 		req.setPaymentRefNo("PR-" + UUID.randomUUID());
-		req.setRemark("Payroll disbursed and salary slips emailed.");
+		req.setRemark("Payroll disbursed and salary slips are being emailed.");
 		paymentRequestRepo.save(req);
 
+		// Send emails asynchronously 
+		for (SalaryDisbursementEntity s : disbursements) {
+			try {
+				EmployeeEntity emp = s.getEmployee();
+				byte[] pdf = pdfGenerator.generateSalarySlip(emp, s);
+				emailService.sendSalarySlipEmail(emp,
+						emp.getEmployeeSalary().getTemplate().getNetSalary().doubleValue(), pdf, s.getSalaryMonth());
+			} catch (Exception e) {
+				System.err.println(
+						"❌ Error preparing salary slip for " + s.getEmployee().getFirstName() + ": " + e.getMessage());
+			}
+		}
+
+		
 		emailService.sendPayrollDisbursedEmail(req.getOrganization().getEmail(), req.getOrganization().getOrgName(),
 				req.getPaymentId(), req.getAmount(), req.getStatus(), req.getApprovalDate());
 
-		return new PayrollActionResponseDto(req.getPaymentId(), req.getStatus(), "Payroll disbursed successfully.",
-				req.getRemark(), req.getAmount(), req.getApprovalDate());
+		return new PayrollActionResponseDto(req.getPaymentId(), req.getStatus(),
+				"Payroll disbursed successfully. Salary slips are being sent via email.", req.getRemark(),
+				req.getAmount(), req.getApprovalDate());
 	}
 
 	@Override

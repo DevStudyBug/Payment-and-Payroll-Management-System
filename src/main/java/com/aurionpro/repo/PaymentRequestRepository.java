@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.aurionpro.constants.PaymentRequestType;
+import com.aurionpro.entity.OrganizationEntity;
 import com.aurionpro.entity.PaymentRequestEntity;
 
 @Repository
@@ -27,6 +29,8 @@ public interface PaymentRequestRepository extends JpaRepository<PaymentRequestEn
     //Fetch all PENDING payroll requests
     List<PaymentRequestEntity> findByRequestTypeAndStatusOrderByRequestDateDesc(String requestType, String status);
     
+    List<PaymentRequestEntity> findByOrganization(OrganizationEntity organization);
+    
     @Query("""
     	    SELECT p FROM PaymentRequestEntity p
     	    WHERE (:status IS NULL OR LOWER(p.status) = LOWER(:status))
@@ -42,4 +46,6 @@ public interface PaymentRequestRepository extends JpaRepository<PaymentRequestEn
     	        @Param("startDate") LocalDateTime startDate,
     	        @Param("endDate") LocalDateTime endDate,
     	        Pageable pageable);
+    
+    List<PaymentRequestEntity> findByOrganizationAndRequestType(OrganizationEntity organization, PaymentRequestType requestType);
 }

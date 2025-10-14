@@ -25,6 +25,7 @@ import com.aurionpro.dto.response.PayrollActionResponseDto;
 import com.aurionpro.dto.response.PayrollGenerateResponseDto;
 import com.aurionpro.dto.response.PayrollSubmitResponseDto;
 import com.aurionpro.dto.response.SalaryDisbursementDto;
+import com.aurionpro.dto.response.VendorPaymentRequestResponseDto;
 import com.aurionpro.entity.EmployeeEntity;
 import com.aurionpro.entity.EmployeeSalaryEntity;
 import com.aurionpro.entity.OrganizationEntity;
@@ -32,6 +33,7 @@ import com.aurionpro.entity.PaymentRequestEntity;
 import com.aurionpro.entity.SalaryDisbursementEntity;
 import com.aurionpro.entity.SalaryTemplateEntity;
 import com.aurionpro.entity.UserEntity;
+import com.aurionpro.entity.VendorEntity;
 import com.aurionpro.repo.EmployeeRepository;
 import com.aurionpro.repo.EmployeeSalaryRepository;
 import com.aurionpro.repo.OrganizationRepository;
@@ -190,6 +192,34 @@ public class PayrollServiceImplementation implements PayrollService {
 				paymentRequest.getStatus());
 	}
 
+	@Override
+	public Object approvePaymentRequest(Long paymentRequestId) {
+		PaymentRequestEntity req = paymentRequestRepo.findById(paymentRequestId)
+				.orElseThrow(() -> new NotFoundException("Payment request not found."));
+
+		if (req.getRequestType() == PaymentRequestType.PAYROLL) {
+			return approvePayrollRequest(paymentRequestId);
+		} else if (req.getRequestType() == PaymentRequestType.VENDOR) {
+			return approveVendorRequest(paymentRequestId);
+		} else {
+			throw new IllegalArgumentException("Unknown request type for approval.");
+		}
+	}
+
+	@Override
+	public Object rejectPaymentRequest(Long paymentRequestId, RejectRequestDto dto) {
+		PaymentRequestEntity req = paymentRequestRepo.findById(paymentRequestId)
+				.orElseThrow(() -> new NotFoundException("Payment request not found."));
+
+		if (req.getRequestType() == PaymentRequestType.PAYROLL) {
+			return rejectPayrollRequest(paymentRequestId, dto);
+		} else if (req.getRequestType() == PaymentRequestType.VENDOR) {
+			return rejectVendorRequest(paymentRequestId, dto);
+		} else {
+			throw new IllegalArgumentException("Unsupported payment request type.");
+		}
+	}
+
 	// APPROVE PAYROLL (Bank Admin)
 	// -----------------------------------------------------------------
 	@Override
@@ -278,6 +308,20 @@ public class PayrollServiceImplementation implements PayrollService {
 				req.getApprovalDate());
 	}
 
+	@Override
+	public Object disbursePayment(Long paymentRequestId) {
+		PaymentRequestEntity req = paymentRequestRepo.findById(paymentRequestId)
+				.orElseThrow(() -> new NotFoundException("Payment request not found."));
+
+		if (req.getRequestType() == PaymentRequestType.PAYROLL) {
+			return disbursePayroll(paymentRequestId);
+		} else if (req.getRequestType() == PaymentRequestType.VENDOR) {
+			return disburseVendorPayment(paymentRequestId);
+		} else {
+			throw new IllegalArgumentException("Unsupported payment request type for disbursement.");
+		}
+	}
+
 	// DISBURSE PAYROLL (Bank Admin)
 	// -----------------------------------------------------------------
 	@Override
@@ -294,7 +338,6 @@ public class PayrollServiceImplementation implements PayrollService {
 		if (disbursements.isEmpty())
 			throw new NotFoundException("No disbursements found for this request.");
 
-	
 		for (SalaryDisbursementEntity s : disbursements) {
 			s.setStatus("PAID");
 			s.setTransactionDate(LocalDateTime.now());
@@ -302,17 +345,15 @@ public class PayrollServiceImplementation implements PayrollService {
 			s.setRemark("Salary credited successfully.");
 		}
 
-		
 		salaryDisbursementRepo.saveAll(disbursements);
 
-		
 		req.setStatus("PAID");
 		req.setApprovalDate(LocalDateTime.now());
 		req.setPaymentRefNo("PR-" + UUID.randomUUID());
 		req.setRemark("Payroll disbursed and salary slips are being emailed.");
 		paymentRequestRepo.save(req);
 
-		// Send emails asynchronously 
+		// Send emails asynchronously
 		for (SalaryDisbursementEntity s : disbursements) {
 			try {
 				EmployeeEntity emp = s.getEmployee();
@@ -325,13 +366,44 @@ public class PayrollServiceImplementation implements PayrollService {
 			}
 		}
 
-		
 		emailService.sendPayrollDisbursedEmail(req.getOrganization().getEmail(), req.getOrganization().getOrgName(),
 				req.getPaymentId(), req.getAmount(), req.getStatus(), req.getApprovalDate());
 
 		return new PayrollActionResponseDto(req.getPaymentId(), req.getStatus(),
 				"Payroll disbursed successfully. Salary slips are being sent via email.", req.getRemark(),
 				req.getAmount(), req.getApprovalDate());
+	}
+
+	// DISBURSE PAYMENT (Bank Admin)
+	@Override
+	public VendorPaymentRequestResponseDto disburseVendorPayment(Long paymentRequestId) {
+		PaymentRequestEntity req = paymentRequestRepo.findById(paymentRequestId)
+				.orElseThrow(() -> new NotFoundException("Payment request not found."));
+
+		if (req.getRequestType() != PaymentRequestType.VENDOR) {
+			throw new IllegalArgumentException("This payment request is not of type VENDOR.");
+		}
+
+		if (!"APPROVED".equalsIgnoreCase(req.getStatus())) {
+			throw new IllegalStateException("Only APPROVED vendor payment requests can be disbursed.");
+		}
+
+		VendorEntity vendor = req.getVendor();
+		if (vendor == null) {
+			throw new NotFoundException("No vendor linked to this payment request.");
+		}
+
+		req.setStatus("PAID");
+		req.setApprovalDate(LocalDateTime.now());
+		req.setPaymentRefNo("VN-" + UUID.randomUUID());
+		req.setRemark("Vendor payment disbursed successfully. Reference: " + req.getPaymentRefNo());
+		paymentRequestRepo.save(req);
+
+		return VendorPaymentRequestResponseDto.builder().paymentId(req.getPaymentId())
+				.organizationName(req.getOrganization().getOrgName()).vendorName(vendor.getName())
+				.amount(req.getAmount()).description(req.getDescription()).requestType(req.getRequestType())
+				.status(req.getStatus()).remark(req.getRemark()).requestDate(req.getRequestDate())
+				.approvalDate(req.getApprovalDate()).paymentRefNo(req.getPaymentRefNo()).build();
 	}
 
 	@Override
@@ -424,4 +496,69 @@ public class PayrollServiceImplementation implements PayrollService {
 		return new PayrollActionResponseDto(req.getPaymentId(), req.getStatus(), "Payroll request rejected.",
 				req.getRemark(), req.getAmount(), req.getApprovalDate());
 	}
+
+	// approve the paymentrequest of vendor
+	@Override
+	public VendorPaymentRequestResponseDto approveVendorRequest(Long paymentRequestId) {
+		PaymentRequestEntity req = paymentRequestRepo.findById(paymentRequestId)
+				.orElseThrow(() -> new NotFoundException("Payment request not found."));
+
+		if (!"PENDING".equalsIgnoreCase(req.getStatus())) {
+			throw new IllegalStateException("Only PENDING vendor requests can be approved.");
+		}
+
+		if (req.getRequestType() != PaymentRequestType.VENDOR) {
+			throw new IllegalArgumentException("This payment request is not of type VENDOR.");
+		}
+
+		VendorEntity vendor = req.getVendor();
+		if (vendor == null) {
+			throw new NotFoundException("No vendor associated with this payment request.");
+		}
+
+		req.setStatus("APPROVED");
+		req.setApprovalDate(LocalDateTime.now());
+		req.setRemark("Vendor payment request approved. Awaiting disbursement.");
+
+		paymentRequestRepo.save(req);
+
+		return VendorPaymentRequestResponseDto.builder().paymentId(req.getPaymentId())
+				.organizationName(req.getOrganization().getOrgName()).vendorName(vendor.getName())
+				.amount(req.getAmount()).description(req.getDescription()).requestType(req.getRequestType())
+				.status(req.getStatus()).remark(req.getRemark()).requestDate(req.getRequestDate())
+				.approvalDate(req.getApprovalDate()).paymentRefNo(req.getPaymentRefNo()).build();
+	}
+
+	// Reject the paymentrequest of vendor
+	@Override
+	public VendorPaymentRequestResponseDto rejectVendorRequest(Long paymentRequestId, RejectRequestDto dto) {
+		PaymentRequestEntity req = paymentRequestRepo.findById(paymentRequestId)
+				.orElseThrow(() -> new NotFoundException("Payment request not found."));
+
+		if (!"PENDING".equalsIgnoreCase(req.getStatus())) {
+			throw new IllegalStateException("Only PENDING  vendor payment requests can be rejected.");
+		}
+
+		if (req.getRequestType() != PaymentRequestType.VENDOR) {
+			throw new IllegalArgumentException("This payment request is not of type VENDOR.");
+		}
+
+		VendorEntity vendor = req.getVendor();
+		if (vendor == null) {
+			throw new NotFoundException("No vendor associated with this payment request.");
+		}
+
+		req.setStatus("REJECTED");
+		req.setApprovalDate(LocalDateTime.now());
+		req.setRemark(dto.getReason());
+
+		paymentRequestRepo.save(req);
+
+		return VendorPaymentRequestResponseDto.builder().paymentId(req.getPaymentId())
+				.organizationName(req.getOrganization().getOrgName()).vendorName(vendor.getName())
+				.amount(req.getAmount()).description(req.getDescription()).requestType(req.getRequestType())
+				.status(req.getStatus()).remark(req.getRemark()).requestDate(req.getRequestDate())
+				.approvalDate(req.getApprovalDate()).paymentRefNo(req.getPaymentRefNo()).build();
+	}
+
 }

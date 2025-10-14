@@ -1,8 +1,12 @@
 package com.aurionpro.dto.request;
 
-import lombok.Data;
+import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 public class RejectRequestDto {
+    @NotBlank(message = "Rejection reason is required.")
     private String reason;
 }

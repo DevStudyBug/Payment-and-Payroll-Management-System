@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -24,9 +25,12 @@ import com.aurionpro.dto.response.OrgRegisterResponseDto;
 import com.aurionpro.dto.response.PaymentRequestDetailDto;
 import com.aurionpro.dto.response.PaymentRequestPageResponseDto;
 import com.aurionpro.dto.response.PayrollActionResponseDto;
+import com.aurionpro.dto.response.VendorPaymentRequestResponseDto;
 import com.aurionpro.service.BankAdminService;
 import com.aurionpro.service.PayrollService;
+import com.aurionpro.service.VendorPaymentRequestService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @CrossOrigin(origins = "http://localhost:4200")
@@ -37,6 +41,7 @@ public class BankAdminController {
 
 	private final BankAdminService bankAdminService;
 	private final PayrollService payrollService;
+	private final VendorPaymentRequestService vendorPaymentRequestService;
 
 	// ---------------------------
 	// GET: Pending Organizations
@@ -198,42 +203,61 @@ public class BankAdminController {
 		return ResponseEntity.ok(payrollService.getPaymentRequestDetail(paymentRequestId));
 	}
 
-	@PreAuthorize("hasRole('ORG_ADMIN')")
-	@PutMapping("/approve/{paymentRequestId}")
-	public ResponseEntity<PayrollActionResponseDto> approvePayrollRequest(@PathVariable Long paymentRequestId) {
+//	@PreAuthorize("hasRole('ORG_ADMIN')")
+//	@PutMapping("/approve/{paymentRequestId}")
+//	public ResponseEntity<PayrollActionResponseDto> approvePayrollRequest(@PathVariable Long paymentRequestId) {
+//
+//		PayrollActionResponseDto response = payrollService.approvePayrollRequest(paymentRequestId);
+//		return ResponseEntity.ok(response);
+//	}
 
-		PayrollActionResponseDto response = payrollService.approvePayrollRequest(paymentRequestId);
-		return ResponseEntity.ok(response);
+	@PreAuthorize("hasRole('BANK_ADMIN')")
+	@PatchMapping("/approve/{paymentRequestId}")
+	public ResponseEntity<?> approvePayrollRequestandPayement(@PathVariable Long paymentRequestId) {
+		return ResponseEntity.ok(payrollService.approvePaymentRequest(paymentRequestId));
 	}
 
+//	@PreAuthorize("hasRole('ORG_ADMIN')")
+//	@PutMapping("/reject/{paymentRequestId}")
+//	public ResponseEntity<PayrollActionResponseDto> rejectPayrollRequest(@PathVariable Long paymentRequestId,
+//			@RequestBody RejectRequestDto dto) {
+//
+//		PayrollActionResponseDto response = payrollService.rejectPayrollRequest(paymentRequestId, dto);
+//		return ResponseEntity.ok(response);
+//	}
 	@PreAuthorize("hasRole('ORG_ADMIN')")
-	@PutMapping("/reject/{paymentRequestId}")
-	public ResponseEntity<PayrollActionResponseDto> rejectPayrollRequest(@PathVariable Long paymentRequestId,
-			@RequestBody RejectRequestDto dto) {
-
-		PayrollActionResponseDto response = payrollService.rejectPayrollRequest(paymentRequestId, dto);
-		return ResponseEntity.ok(response);
+	@PatchMapping("/reject/{paymentRequestId}")
+	public ResponseEntity<?> rejectRequest(@PathVariable Long paymentRequestId,
+			@Valid @RequestBody RejectRequestDto dto) {
+		return ResponseEntity.ok(payrollService.rejectPaymentRequest(paymentRequestId, dto));
 	}
 
-	@PreAuthorize("hasRole('ORG_ADMIN')")
-	@PutMapping("/disburse/{paymentRequestId}")
-	public ResponseEntity<PayrollActionResponseDto> disbursePayroll(@PathVariable Long paymentRequestId) {
-
-		PayrollActionResponseDto response = payrollService.disbursePayroll(paymentRequestId);
-		return ResponseEntity.ok(response);
-	}
+//	@PreAuthorize("hasRole('ORG_ADMIN')")
+//	@PutMapping("/disburse/{paymentRequestId}")
+//	public ResponseEntity<PayrollActionResponseDto> disbursePayroll(@PathVariable Long paymentRequestId) {
+//
+//		PayrollActionResponseDto response = payrollService.disbursePayroll(paymentRequestId);
+//		return ResponseEntity.ok(response);
+//	}
 	
-	 // ---------------------------
-    // GET: View All Organizations (with optional filter)
-    // ---------------------------
-    @GetMapping("/organizations")
-    public ResponseEntity<List<OrgRegisterResponseDto>> getAllOrganizations(
-            @RequestParam(required = false) String status) {
+	@PreAuthorize("hasRole('BANK_ADMIN')")
+	@PatchMapping("/disburse/{paymentRequestId}")
+	public ResponseEntity<?> disbursePayment(@PathVariable Long paymentRequestId) {
+	    return ResponseEntity.ok(payrollService.disbursePayment(paymentRequestId));
+	}
 
-        List<OrgRegisterResponseDto> orgs = (status != null && !status.isEmpty())
-                ? bankAdminService.getOrganizationsByStatus(status.toUpperCase())
-                : bankAdminService.getAllOrganizations();
 
-        return ResponseEntity.ok(orgs);
-    }
+	// GET: View All Organizations (with optional filter)
+
+	@GetMapping("/organizations")
+	public ResponseEntity<List<OrgRegisterResponseDto>> getAllOrganizations(
+			@RequestParam(required = false) String status) {
+
+		List<OrgRegisterResponseDto> orgs = (status != null && !status.isEmpty())
+				? bankAdminService.getOrganizationsByStatus(status.toUpperCase())
+				: bankAdminService.getAllOrganizations();
+
+		return ResponseEntity.ok(orgs);
+	}
+
 }

@@ -10,6 +10,7 @@ import com.aurionpro.dto.response.PaymentRequestPageResponseDto;
 import com.aurionpro.dto.response.PayrollActionResponseDto;
 import com.aurionpro.dto.response.PayrollGenerateResponseDto;
 import com.aurionpro.dto.response.PayrollSubmitResponseDto;
+import com.aurionpro.dto.response.VendorPaymentRequestResponseDto;
 
 public interface PayrollService {
 	// OrgAdmin Actions
@@ -27,4 +28,15 @@ public interface PayrollService {
 	public PayrollActionResponseDto rejectPayrollRequest(Long paymentRequestId, RejectRequestDto dto);
 
 	public PayrollActionResponseDto disbursePayroll(Long paymentRequestId);
+
+	public Object approvePaymentRequest(Long paymentRequestId);
+
+	public Object rejectPaymentRequest(Long paymentRequestId, RejectRequestDto dto);
+	public Object disbursePayment(Long paymentRequestId);
+	// vendor
+	public VendorPaymentRequestResponseDto approveVendorRequest(Long paymentRequestId);
+	
+
+	public VendorPaymentRequestResponseDto rejectVendorRequest(Long paymentRequestId, RejectRequestDto dto);
+	public VendorPaymentRequestResponseDto disburseVendorPayment(Long paymentRequestId);
 }

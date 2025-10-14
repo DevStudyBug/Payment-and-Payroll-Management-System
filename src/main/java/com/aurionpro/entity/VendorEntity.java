@@ -51,7 +51,7 @@ public class VendorEntity {
 	private OrganizationEntity organization;
 	@OneToMany(mappedBy = "vendor", cascade = CascadeType.ALL)
 	private List<PaymentRequestEntity> paymentRequests = new ArrayList<>();
-	
+
 	@Column(nullable = false)
-    private boolean deleted = false;
+	private boolean deleted = false;
 }

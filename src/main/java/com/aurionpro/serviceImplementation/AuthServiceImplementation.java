@@ -6,7 +6,9 @@ import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -20,7 +22,6 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.modelmapper.ModelMapper;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -144,10 +145,10 @@ public class AuthServiceImplementation implements AuthService {
 
 		// Get organization status (if applicable)
 
-		//String Status = (user.getOrganization() != null) ? user.getOrganization().getStatus() : user.getEmployee().getStatus();
+		// String Status = (user.getOrganization() != null) ?
+		// user.getOrganization().getStatus() : user.getEmployee().getStatus();
 
 //		String Status = (user.getOrganization() != null) ? user.getOrganization().getStatus() : user.getEmployee().getStatus();
-
 
 		return LoginResponseDto.builder().token(jwt).userId(user.getUserId()).email(user.getEmail()).roles(roleNames)
 				.message("Login successful.").build();
@@ -173,7 +174,7 @@ public class AuthServiceImplementation implements AuthService {
 			}
 		}
 
-		// Generate unique username 
+		// Generate unique username
 		String baseUsername = (request.getFirstName() + "." + request.getLastName()).toLowerCase();
 		String username = generateUniqueUsername(baseUsername, org.getOrgId());
 
@@ -212,12 +213,12 @@ public class AuthServiceImplementation implements AuthService {
 
 		// Assign salary template (if available)
 		DesignationEntity designationEntity = org.getDesignations().stream()
-			    .filter(d -> d.getName().equalsIgnoreCase(request.getDesignation()))
-			    .findFirst()
-			    .orElseThrow(() -> new NotFoundException("Designation '" + request.getDesignation() + "' not found for this organization."));
+				.filter(d -> d.getName().equalsIgnoreCase(request.getDesignation())).findFirst()
+				.orElseThrow(() -> new NotFoundException(
+						"Designation '" + request.getDesignation() + "' not found for this organization."));
 
-			Optional<SalaryTemplateEntity> templateOpt =
-			    salaryTemplateRepository.findByOrganizationAndDesignation(org, designationEntity);
+		Optional<SalaryTemplateEntity> templateOpt = salaryTemplateRepository.findByOrganizationAndDesignation(org,
+				designationEntity);
 		templateOpt.ifPresent(template -> {
 			EmployeeSalaryEntity salary = new EmployeeSalaryEntity();
 			salary.setEmployee(employee);
@@ -240,28 +241,110 @@ public class AuthServiceImplementation implements AuthService {
 			throw new InvalidOperationException("Failed to send verification email. Please try again later.");
 		}
 
-		return EmployeeRegisterResponseDto.builder().employeeId(employee.getEmployeeId()).username(username)
-				.temporaryPassword(rawPassword).status(employee.getStatus()).build();
+		return EmployeeRegisterResponseDto.builder().username(username).temporaryPassword(rawPassword)
+				.status(employee.getStatus()).build();
 	}
 
 	@Override
+	@Transactional
 	public EmployeeBulkRegisterResponseDto registerEmployeesInBulk(OrganizationEntity org,
 			List<EmployeeRegisterRequestDto> employeeRequests) {
 
 		List<EmployeeRegisterResponseDto> successList = new ArrayList<>();
 		List<String> failureList = new ArrayList<>();
 
+		List<UserEntity> usersToSave = new ArrayList<>();
+		List<EmployeeEntity> employeesToSave = new ArrayList<>();
+		List<Runnable> asyncEmailTasks = new ArrayList<>();
+		List<UserEntity> savedUsers = new ArrayList<>();
+
+		Map<String, String> tempPasswords = new HashMap<>();
+
 		for (int i = 0; i < employeeRequests.size(); i++) {
 			EmployeeRegisterRequestDto req = employeeRequests.get(i);
 			try {
-				// manually create a mock Authentication for reusing existing method
-				Authentication mockAuth = new UsernamePasswordAuthenticationToken(org.getUser().getUsername(), null);
-				EmployeeRegisterResponseDto response = registerEmployee(mockAuth, req);
-				successList.add(response);
+
+				if (req.getDob() != null && Period.between(req.getDob(), LocalDate.now()).getYears() < 20)
+					throw new IllegalArgumentException("Employee must be at least 20 years old.");
+
+				String baseUsername = (req.getFirstName() + "." + req.getLastName()).toLowerCase();
+				String username = generateUniqueUsername(baseUsername, org.getOrgId());
+				String rawPassword = generateRandomPassword(10);
+				String encodedPassword = passwordEncoder.encode(rawPassword);
+
+				tempPasswords.put(username, rawPassword);
+
+				UserEntity user = new UserEntity();
+				user.setUsername(username);
+				user.setPassword(encodedPassword);
+				user.setEmail(req.getEmail());
+				user.setFirstLogin(true);
+				user.setStatus("INACTIVE");
+
+				UserRoleEntity role = new UserRoleEntity();
+				role.setRole("EMPLOYEE");
+				role.setUser(user);
+				user.getRoles().add(role);
+				usersToSave.add(user);
+
+				EmployeeEntity emp = new EmployeeEntity();
+				emp.setUser(user);
+				emp.setOrganization(org);
+				emp.setFirstName(req.getFirstName());
+				emp.setLastName(req.getLastName());
+				emp.setDob(req.getDob());
+				emp.setDepartment(req.getDepartment());
+				emp.setDesignation(req.getDesignation());
+				emp.setStatus("PENDING");
+				employeesToSave.add(emp);
+
+				successList.add(EmployeeRegisterResponseDto.builder().username(username).temporaryPassword(rawPassword)
+						.status(emp.getStatus()).build());
+
 			} catch (Exception e) {
 				failureList.add("Row " + (i + 1) + ": " + e.getMessage());
 			}
+
+			if (usersToSave.size() >= 10 || i == employeeRequests.size() - 1) {
+				userRepository.saveAll(usersToSave);
+				employeeRepository.saveAll(employeesToSave);
+
+				userRepository.flush();
+				employeeRepository.flush();
+
+				savedUsers.addAll(usersToSave);
+				usersToSave.clear();
+				employeesToSave.clear();
+			}
 		}
+
+		for (UserEntity user : savedUsers) {
+			try {
+				String token = UUID.randomUUID().toString();
+				VerificationTokenEntity vToken = new VerificationTokenEntity(token, user);
+				tokenRepo.save(vToken);
+
+				String verificationLink = "http://localhost:8080/api/v1/auth/verify-email?token=" + token;
+
+				String tempPassword = tempPasswords.get(user.getUsername());
+
+				asyncEmailTasks.add(() -> {
+					try {
+						emailService.sendVerificationEmail(user.getEmail(), user.getUsername(), tempPassword,
+								verificationLink);
+					} catch (Exception ex) {
+						System.err.println("⚠️ Failed to send email to " + user.getUsername() + ": " + ex.getMessage());
+					}
+				});
+
+			} catch (Exception e) {
+				System.err.println("⚠️ Failed to create token for user " + user.getUsername() + ": " + e.getMessage());
+			}
+		}
+
+		asyncEmailTasks.forEach(Runnable::run);
+
+		tempPasswords.clear();
 
 		return EmployeeBulkRegisterResponseDto.builder().successfulRegistrations(successList)
 				.failedRegistrations(failureList).build();
@@ -331,7 +414,6 @@ public class AuthServiceImplementation implements AuthService {
 			throw new InvalidOperationException("No valid employee records found. Errors: " + errors);
 		}
 
-	
 		EmployeeBulkRegisterResponseDto result = registerEmployeesInBulk(org, validEmployees);
 		if (result.getFailedRegistrations() == null)
 			result.setFailedRegistrations(new ArrayList<>());

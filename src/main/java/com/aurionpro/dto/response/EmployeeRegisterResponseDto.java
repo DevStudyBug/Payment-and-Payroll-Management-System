@@ -7,7 +7,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class EmployeeRegisterResponseDto {
-	private Long employeeId;
+//	private Long employeeId;
 	private String username;
 	private String temporaryPassword;
 	private String status;

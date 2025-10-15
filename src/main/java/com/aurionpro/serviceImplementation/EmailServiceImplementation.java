@@ -26,6 +26,7 @@ public class EmailServiceImplementation implements EmailService {
 	private static final String FROM_EMAIL = "nihalsingh9363@gmail.com";
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendVerificationEmail(String toEmail, String token) {
 		String subject = "Verify Your Email - Payment & Payroll Portal";
 		String verifyUrl = "http://localhost:8080/api/v1/auth/verify-email?token=" + token;
@@ -70,6 +71,8 @@ public class EmailServiceImplementation implements EmailService {
 		sendGenericEmail(org.getEmail(), subject, body);
 	}
 
+	@Override
+	@Async("emailTaskExecutor")
 	public void sendVerificationEmail(String toEmail, String username, String tempPassword, String verificationLink) {
 		String subject = "Verify Your Account - Employee Portal";
 		String body = """
@@ -98,6 +101,7 @@ public class EmailServiceImplementation implements EmailService {
 	// DOCUMENT STATUS EMAILS (APPROVED / REJECTED)
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendDocumentStatusEmail(EmployeeEntity employee, String documentType, String status, String reason) {
 		String subject;
 		String body;
@@ -124,6 +128,7 @@ public class EmailServiceImplementation implements EmailService {
 	// BANK STATUS EMAILS (APPROVED / REJECTED / UNDER REVIEW)
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendBankStatusEmail(EmployeeEntity employee, String status, String reason) {
 		String subject;
 		String body;
@@ -157,6 +162,7 @@ public class EmailServiceImplementation implements EmailService {
 	// EMPLOYEE ACTIVATION EMAIL
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendEmployeeActivationEmail(EmployeeEntity employee) {
 		String subject = "🎉 Onboarding Complete: Welcome Aboard!";
 		String body = String.format("Dear %s,\n\n"
@@ -168,6 +174,7 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendPayrollApprovalEmail(String toEmail, Long payrollId, String description) {
 		String subject = "✅ Payroll Approved - ID " + payrollId;
 		String body = """
@@ -191,6 +198,7 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendPayrollRejectionEmail(String toEmail, Long payrollId, String reason) {
 		String subject = "⚠️ Payroll Rejected - ID " + payrollId;
 		String body = """
@@ -211,84 +219,82 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
-    @Async("emailTaskExecutor") 
-    public void sendPayrollDisbursedEmail(String toEmail, String orgName, Long payrollId, 
-                                          double totalAmount, String status, 
-                                          LocalDateTime approvalDate) {
-        
-        String subject = "💰 Payroll Disbursed Successfully - ID " + payrollId;
+	@Async("emailTaskExecutor")
+	public void sendPayrollDisbursedEmail(String toEmail, String orgName, Long payrollId, double totalAmount,
+			String status, LocalDateTime approvalDate) {
 
-        String body = String.format(
-            """
-            Dear %s Team,
+		String subject = "💰 Payroll Disbursed Successfully - ID " + payrollId;
 
-            We're pleased to inform you that your payroll request (ID: %d) has been successfully disbursed.
+		String body = String.format(
+				"""
+						Dear %s Team,
 
-            📅 Disbursement Date: %s
-            💰 Total Amount: ₹%.2f
-            🧾 Status: %s
+						We're pleased to inform you that your payroll request (ID: %d) has been successfully disbursed.
 
-            Salary slips have been generated and emailed to all respective employees automatically.
+						📅 Disbursement Date: %s
+						💰 Total Amount: ₹%.2f
+						🧾 Status: %s
 
-            You can view payroll details, transaction records, and disbursement history anytime in your organization dashboard.
+						Salary slips have been generated and emailed to all respective employees automatically.
 
-            If you notice any discrepancies or missing payments, please contact the payroll support team immediately.
+						You can view payroll details, transaction records, and disbursement history anytime in your organization dashboard.
 
-            Best regards,
-            AurionPro Payroll & Banking Team
-            """,
-            orgName, payrollId, 
-            approvalDate.format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm")), 
-            totalAmount, status
-        );
+						If you notice any discrepancies or missing payments, please contact the payroll support team immediately.
 
-        try {
-            sendGenericEmail(toEmail, subject, body);
-            System.out.println("✅ Payroll email sent to: " + toEmail);
-        } catch (Exception e) {
-            System.err.println("❌ Failed to send payroll email to " + toEmail + ": " + e.getMessage());
-        }
-    }
+						Best regards,
+						AurionPro Payroll & Banking Team
+						""",
+				orgName, payrollId, approvalDate.format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm")), totalAmount,
+				status);
 
-    @Override
-    @Async("emailTaskExecutor")  
-    public void sendSalarySlipEmail(EmployeeEntity employee, double netSalary, 
-                                    byte[] pdf, String month) {
-        try {
-            MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);
-            helper.setFrom(FROM_EMAIL);
-            helper.setTo(employee.getUser().getEmail());
-            helper.setSubject("💼 Salary Slip - " + month);
+		try {
+			sendGenericEmail(toEmail, subject, body);
+			System.out.println("✅ Payroll email sent to: " + toEmail);
+		} catch (Exception e) {
+			System.err.println("❌ Failed to send payroll email to " + toEmail + ": " + e.getMessage());
+		}
+	}
 
-            helper.setText(String.format("""
-                Dear %s,
-
-                Your salary for %s has been successfully credited to your registered bank account.
-
-                Please find attached your official salary slip for the month.
-
-                💰 Net Salary: ₹%.2f
-
-                For any queries, kindly contact HR.
-
-                Regards,
-                Payroll Department
-                """, employee.getFirstName(), month, netSalary));
-
-            DataSource dataSource = new ByteArrayDataSource(pdf, "application/pdf");
-            helper.addAttachment("SalarySlip_" + month + ".pdf", dataSource);
-
-            mailSender.send(mimeMessage);
-            
-            System.out.println("✅ Salary slip sent to: " + employee.getUser().getEmail());
-
-        } catch (Exception e) {
-            System.err.println("⚠️ Failed to send salary slip email to " + 
-                employee.getUser().getEmail() + ": " + e.getMessage());
-        }
-    }
 	@Override
+	@Async("emailTaskExecutor")
+	public void sendSalarySlipEmail(EmployeeEntity employee, double netSalary, byte[] pdf, String month) {
+		try {
+			MimeMessage mimeMessage = mailSender.createMimeMessage();
+			MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);
+			helper.setFrom(FROM_EMAIL);
+			helper.setTo(employee.getUser().getEmail());
+			helper.setSubject("💼 Salary Slip - " + month);
+
+			helper.setText(String.format("""
+					Dear %s,
+
+					Your salary for %s has been successfully credited to your registered bank account.
+
+					Please find attached your official salary slip for the month.
+
+					💰 Net Salary: ₹%.2f
+
+					For any queries, kindly contact HR.
+
+					Regards,
+					Payroll Department
+					""", employee.getFirstName(), month, netSalary));
+
+			DataSource dataSource = new ByteArrayDataSource(pdf, "application/pdf");
+			helper.addAttachment("SalarySlip_" + month + ".pdf", dataSource);
+
+			mailSender.send(mimeMessage);
+
+			System.out.println("✅ Salary slip sent to: " + employee.getUser().getEmail());
+
+		} catch (Exception e) {
+			System.err.println(
+					"⚠️ Failed to send salary slip email to " + employee.getUser().getEmail() + ": " + e.getMessage());
+		}
+	}
+
+	@Override
+	@Async("emailTaskExecutor")
 	public void sendConcernSubmissionEmail(EmployeeEntity employee, String ticketNumber, String category,
 			String priority, String description) {
 		String subject = "📝 Concern Submitted - Ticket #" + ticketNumber;
@@ -314,6 +320,7 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendConcernNotificationToHR(String hrEmail, EmployeeEntity employee, String ticketNumber,
 			String category, String priority, String description) {
 		String subject = "📨 New Concern Raised - Ticket #" + ticketNumber;
@@ -340,6 +347,7 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendConcernStatusUpdateEmail(EmployeeEntity employee, String ticketNumber, String newStatus,
 			String adminResponse) {
 		String subject = "🔔 Concern Status Update - Ticket #" + ticketNumber;
@@ -362,6 +370,7 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendBankDetailsVerifiedEmail(OrganizationEntity org) {
 		String subject = "Bank Details Verified - Payment & Payroll Portal";
 		String body = """
@@ -377,6 +386,7 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendBankAdminRejectionEmail(OrganizationEntity org, String remarks) {
 		String subject = "Organization Rejected - Payment & Payroll Portal";
 		String body = """
@@ -395,6 +405,7 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendDocumentVerifiedEmail(OrganizationEntity org, String fileName) {
 		String subject = "Document Verified - Payment & Payroll Portal";
 		String body = """
@@ -410,6 +421,7 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendBankDetailsRejectedEmail(OrganizationEntity org, String reason) {
 		String subject = "Bank Details Rejected - Payment & Payroll Portal";
 		String body = """
@@ -430,6 +442,7 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendDocumentRejectedEmail(OrganizationEntity org, String fileName, String reason) {
 		String subject = "Document Rejected - Payment & Payroll Portal";
 		String body = """
@@ -450,6 +463,7 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendConcernReopenedNotification(String email, EmployeeEntity emp, String ticketNumber, String reason) {
 		String subject = "Concern Reopened - Ticket " + ticketNumber;
 		String body = String.format("""
@@ -470,6 +484,7 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendConcernClosedNotification(String email, EmployeeEntity emp, String ticketNumber) {
 		String subject = "Concern Closed - Ticket " + ticketNumber;
 		String body = String.format("""

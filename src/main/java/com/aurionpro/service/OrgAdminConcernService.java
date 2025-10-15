@@ -7,11 +7,8 @@ import com.aurionpro.dto.response.ConcernResponseDto;
 public interface OrgAdminConcernService {
 	Page<ConcernResponseDto> getAllConcerns(Long orgId, String status, String priority, int page, int size);
 
-	ConcernResponseDto getConcernByTicket(String ticketNumber);
-
-	ConcernResponseDto respondToConcern(String ticketNumber, String response);
-
-	ConcernResponseDto resolveConcern(String ticketNumber, String response);
-
-	ConcernResponseDto rejectConcern(String ticketNumber, String response);
+	ConcernResponseDto getConcernByTicket(Long orgId, String ticketNumber);
+	ConcernResponseDto respondToConcern(Long orgId, String ticketNumber, String response);
+	ConcernResponseDto resolveConcern(Long orgId, String ticketNumber, String response);
+	ConcernResponseDto rejectConcern(Long orgId, String ticketNumber, String response);
 }

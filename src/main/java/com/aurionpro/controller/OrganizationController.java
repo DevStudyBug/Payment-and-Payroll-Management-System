@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.aurionpro.app.exception.NotFoundException;
 import com.aurionpro.dto.request.BankDetailsRequestDto;
 import com.aurionpro.dto.request.BankVerificationRequestDto;
 import com.aurionpro.dto.request.DocumentUploadRequestDto;
@@ -41,6 +42,8 @@ import com.aurionpro.dto.response.SalaryTemplateResponseDto;
 import com.aurionpro.dto.response.SalaryTemplateSummaryResponseDto;
 import com.aurionpro.dto.response.VerificationResponseDto;
 import com.aurionpro.entity.DesignationEntity;
+import com.aurionpro.entity.UserEntity;
+import com.aurionpro.repo.UserRepository;
 import com.aurionpro.service.AuthService;
 import com.aurionpro.service.DesignationService;
 import com.aurionpro.service.EmployeeService;
@@ -63,11 +66,11 @@ public class OrganizationController {
 	private final OrganizationOnboardingService onboardingService;
 	private final SalaryTemplateService salaryTemplateService;
 	private final DesignationService designationService;
-	private final EmployeeService employeeService;
 	private final AuthService authService;
 	private final OrgService orgService;
 	private final PayrollService payrollService;
 	private final OrgAdminConcernService adminConcernService;
+	private final UserRepository userRepository;
 
 	@PreAuthorize("hasRole('ORG_ADMIN')")
 	@PostMapping(value = "/upload-document", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -238,9 +241,14 @@ public class OrganizationController {
 
 	@PreAuthorize("hasRole('ORG_ADMIN')")
 	@GetMapping("/concerns")
-	public ResponseEntity<Page<ConcernResponseDto>> getAllConcerns(@RequestParam(required = false) Long orgId,
+	public ResponseEntity<Page<ConcernResponseDto>> getAllConcerns(Authentication authentication,
 			@RequestParam(required = false) String status, @RequestParam(required = false) String priority,
 			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+
+		UserEntity user = userRepository.findByUsername(authentication.getName())
+				.orElseThrow(() -> new NotFoundException("User not found"));
+
+		Long orgId = user.getOrganization().getOrgId();
 
 		return ResponseEntity.ok(adminConcernService.getAllConcerns(orgId, status, priority, page, size));
 	}
@@ -248,30 +256,53 @@ public class OrganizationController {
 	// View single concern
 	@PreAuthorize("hasRole('ORG_ADMIN')")
 	@GetMapping("/concerns/{ticketNumber}")
-	public ResponseEntity<ConcernResponseDto> getConcern(@PathVariable String ticketNumber) {
-		return ResponseEntity.ok(adminConcernService.getConcernByTicket(ticketNumber));
+	public ResponseEntity<ConcernResponseDto> getConcern(Authentication authentication,
+			@PathVariable String ticketNumber) {
+
+		UserEntity user = userRepository.findByUsername(authentication.getName())
+				.orElseThrow(() -> new NotFoundException("User not found"));
+
+		Long orgId = user.getOrganization().getOrgId();
+		return ResponseEntity.ok(adminConcernService.getConcernByTicket(orgId, ticketNumber));
 	}
 
 	@PreAuthorize("hasRole('ORG_ADMIN')")
 	@PutMapping("/concerns/{ticketNumber}/respond")
-	public ResponseEntity<ConcernResponseDto> respondToConcern(@PathVariable String ticketNumber,
-			@RequestBody String response) {
-		return ResponseEntity.ok(adminConcernService.respondToConcern(ticketNumber, response));
+	public ResponseEntity<ConcernResponseDto> respondToConcern(Authentication authentication,
+			@PathVariable String ticketNumber, @RequestBody String response) {
+
+		UserEntity user = userRepository.findByUsername(authentication.getName())
+				.orElseThrow(() -> new NotFoundException("User not found"));
+
+		Long orgId = user.getOrganization().getOrgId();
+
+		return ResponseEntity.ok(adminConcernService.respondToConcern(orgId, ticketNumber, response));
 	}
 
-	// Resolve
 	@PreAuthorize("hasRole('ORG_ADMIN')")
 	@PutMapping("/concerns/{ticketNumber}/resolve")
-	public ResponseEntity<ConcernResponseDto> resolveConcern(@PathVariable String ticketNumber,
-			@RequestBody String response) {
-		return ResponseEntity.ok(adminConcernService.resolveConcern(ticketNumber, response));
+	public ResponseEntity<ConcernResponseDto> resolveConcern(Authentication authentication,
+			@PathVariable String ticketNumber, @RequestBody String response) {
+
+		UserEntity user = userRepository.findByUsername(authentication.getName())
+				.orElseThrow(() -> new NotFoundException("User not found"));
+
+		Long orgId = user.getOrganization().getOrgId();
+
+		return ResponseEntity.ok(adminConcernService.resolveConcern(orgId, ticketNumber, response));
 	}
 
-	// Reject
 	@PreAuthorize("hasRole('ORG_ADMIN')")
 	@PutMapping("/concerns/{ticketNumber}/reject")
-	public ResponseEntity<ConcernResponseDto> rejectConcern(@PathVariable String ticketNumber,
-			@RequestBody String response) {
-		return ResponseEntity.ok(adminConcernService.rejectConcern(ticketNumber, response));
+	public ResponseEntity<ConcernResponseDto> rejectConcern(Authentication authentication,
+			@PathVariable String ticketNumber, @RequestBody String response) {
+
+		UserEntity user = userRepository.findByUsername(authentication.getName())
+				.orElseThrow(() -> new NotFoundException("User not found"));
+
+		Long orgId = user.getOrganization().getOrgId();
+
+		return ResponseEntity.ok(adminConcernService.rejectConcern(orgId, ticketNumber, response));
 	}
+
 }

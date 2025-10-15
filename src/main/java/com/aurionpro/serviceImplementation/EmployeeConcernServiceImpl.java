@@ -9,6 +9,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.aurionpro.app.exception.InvalidOperationException;
 import com.aurionpro.app.exception.NotFoundException;
 import com.aurionpro.constants.ConcernConstants;
 import com.aurionpro.dto.request.ConcernRequestDto;
@@ -90,8 +91,12 @@ public class EmployeeConcernServiceImpl implements EmployeeConcernService {
 	public ConcernResponseDto getConcernByTicket(String username, String ticketNumber) {
 		EmployeeEntity emp = employeeRepo.findByUser_Username(username)
 				.orElseThrow(() -> new NotFoundException("Employee not found"));
+
 		ConcernEntity concern = concernRepo.findByTicketNumber(ticketNumber)
 				.orElseThrow(() -> new NotFoundException("Concern not found"));
+
+		validateOwnership(concern, emp);
+
 
 		return ConcernResponseDto.builder().concernId(concern.getConcernId()).ticketNumber(concern.getTicketNumber())
 				.category(concern.getCategory()).priority(concern.getPriority()).description(concern.getDescription())
@@ -104,74 +109,65 @@ public class EmployeeConcernServiceImpl implements EmployeeConcernService {
 
 	// Close Concern
 	public ConcernResponseDto acknowledgeConcern(String username, String ticketNumber) {
-		ConcernEntity concern = concernRepo.findByTicketNumber(ticketNumber)
-				.orElseThrow(() -> new NotFoundException("Concern not found"));
+	    EmployeeEntity emp = employeeRepo.findByUser_Username(username)
+	            .orElseThrow(() -> new NotFoundException("Employee not found"));
 
-		if (!concern.getEmployee().getUser().getUsername().equals(username)) {
-			throw new NotFoundException("Unauthorized access to concern");
-		}
+	    ConcernEntity concern = concernRepo.findByTicketNumber(ticketNumber)
+	            .orElseThrow(() -> new NotFoundException("Concern not found"));
 
-		if (!ConcernConstants.STATUS_RESOLVED.equalsIgnoreCase(concern.getStatus())
-				&& !ConcernConstants.STATUS_REJECTED.equalsIgnoreCase(concern.getStatus())) {
-			throw new IllegalStateException("Only resolved or rejected concerns can be closed by the employee.");
-		}
+	   
+	    validateOwnership(concern, emp);
 
-		// Update status to CLOSED
-		concern.setStatus(ConcernConstants.STATUS_CLOSED);
-		concern.setUpdatedAt(LocalDateTime.now());
-		concernRepo.save(concern);
+	    if (!ConcernConstants.STATUS_RESOLVED.equalsIgnoreCase(concern.getStatus())
+	            && !ConcernConstants.STATUS_REJECTED.equalsIgnoreCase(concern.getStatus())) {
+	        throw new IllegalStateException("Only resolved or rejected concerns can be closed by the employee.");
+	    }
 
-		// Send email to HR
-		emailService.sendConcernClosedNotification(concern.getOrganization().getEmail(), concern.getEmployee(),
-				concern.getTicketNumber());
+	    concern.setStatus(ConcernConstants.STATUS_CLOSED);
+	    concern.setUpdatedAt(LocalDateTime.now());
+	    concernRepo.save(concern);
 
-		return ConcernResponseDto.builder().concernId(concern.getConcernId()).ticketNumber(concern.getTicketNumber())
-				.category(concern.getCategory()).priority(concern.getPriority()).description(concern.getDescription())
-				.status(concern.getStatus()).adminResponse(concern.getAdminResponse())
-				.attachmentUrl(concern.getAttachmentUrl())
-				.employeeName(concern.getEmployee().getFirstName() + " " + concern.getEmployee().getLastName())
-				.organizationName(concern.getOrganization().getOrgName()).createdAt(concern.getCreatedAt())
-				.updatedAt(concern.getUpdatedAt()).build();
+	    
+	    emailService.sendConcernClosedNotification(concern.getOrganization().getEmail(), concern.getEmployee(),
+	            concern.getTicketNumber());
+
+	    return buildConcernResponse(concern);
 	}
 
-	
 
 	// Reopen
 	public ConcernResponseDto reopenConcern(String username, String ticketNumber, String reason) {
-		EmployeeEntity emp = employeeRepo.findByUser_Username(username)
-				.orElseThrow(() -> new NotFoundException("Employee not found"));
+	    EmployeeEntity emp = employeeRepo.findByUser_Username(username)
+	            .orElseThrow(() -> new NotFoundException("Employee not found"));
 
-		ConcernEntity concern = concernRepo.findByTicketNumber(ticketNumber)
-				.orElseThrow(() -> new NotFoundException("Concern not found"));
+	    ConcernEntity concern = concernRepo.findByTicketNumber(ticketNumber)
+	            .orElseThrow(() -> new NotFoundException("Concern not found"));
 
-		if (!concern.getEmployee().getUser().getUsername().equals(username)) {
-			throw new NotFoundException("Unauthorized access to concern");
-		}
+	 
+	    validateOwnership(concern, emp);
 
-		if (!ConcernConstants.STATUS_RESOLVED.equalsIgnoreCase(concern.getStatus())
-				&& !ConcernConstants.STATUS_REJECTED.equalsIgnoreCase(concern.getStatus())) {
-			throw new IllegalStateException("Only resolved or rejected concerns can be reopened.");
-		}
 
-		concern.setStatus(ConcernConstants.STATUS_REOPENED);
-		concern.setUpdatedAt(LocalDateTime.now());
-		concernRepo.save(concern);
+	    if (!ConcernConstants.STATUS_RESOLVED.equalsIgnoreCase(concern.getStatus())
+	            && !ConcernConstants.STATUS_REJECTED.equalsIgnoreCase(concern.getStatus())) {
+	        throw new IllegalStateException("Only resolved or rejected concerns can be reopened.");
+	    }
 
-		// email send orgAdmin
-		emailService.sendConcernReopenedNotification(concern.getOrganization().getEmail(), emp,
-				concern.getTicketNumber(), reason);
+	    concern.setStatus(ConcernConstants.STATUS_REOPENED);
+	    concern.setUpdatedAt(LocalDateTime.now());
+	    concernRepo.save(concern);
 
-		return ConcernResponseDto.builder().concernId(concern.getConcernId()).ticketNumber(concern.getTicketNumber())
-				.category(concern.getCategory()).priority(concern.getPriority()).description(concern.getDescription())
-				.status(concern.getStatus()).adminResponse(concern.getAdminResponse())
-				.attachmentUrl(concern.getAttachmentUrl()).employeeName(emp.getFirstName() + " " + emp.getLastName())
-				.organizationName(concern.getOrganization().getOrgName()).createdAt(concern.getCreatedAt())
-				.updatedAt(concern.getUpdatedAt()).build();
+	   
+	    emailService.sendConcernReopenedNotification(concern.getOrganization().getEmail(), emp,
+	            concern.getTicketNumber(), reason);
+
+	    return buildConcernResponse(concern);
 	}
+
 	private void sendEmployeeEmail(EmployeeEntity emp, ConcernEntity concern) {
 		emailService.sendConcernSubmissionEmail(emp, concern.getTicketNumber(), concern.getCategory(),
 				concern.getPriority(), concern.getDescription());
 	}
+
 	private void sendAdminEmail(OrganizationEntity org, EmployeeEntity emp, ConcernEntity concern) {
 
 		String hrEmail = org.getEmail();
@@ -179,4 +175,27 @@ public class EmployeeConcernServiceImpl implements EmployeeConcernService {
 		emailService.sendConcernNotificationToHR(hrEmail, emp, concern.getTicketNumber(), concern.getCategory(),
 				concern.getPriority(), concern.getDescription());
 	}
+	private void validateOwnership(ConcernEntity concern, EmployeeEntity emp) {
+	    if (!concern.getEmployee().getEmployeeId().equals(emp.getEmployeeId())) {
+	        throw new InvalidOperationException("You are not authorized to access this concern.");
+	    }
+	}
+
+	private ConcernResponseDto buildConcernResponse(ConcernEntity concern) {
+	    return ConcernResponseDto.builder()
+	            .concernId(concern.getConcernId())
+	            .ticketNumber(concern.getTicketNumber())
+	            .category(concern.getCategory())
+	            .priority(concern.getPriority())
+	            .description(concern.getDescription())
+	            .status(concern.getStatus())
+	            .adminResponse(concern.getAdminResponse())
+	            .attachmentUrl(concern.getAttachmentUrl())
+	            .employeeName(concern.getEmployee().getFirstName() + " " + concern.getEmployee().getLastName())
+	            .organizationName(concern.getOrganization().getOrgName())
+	            .createdAt(concern.getCreatedAt())
+	            .updatedAt(concern.getUpdatedAt())
+	            .build();
+	}
+
 }

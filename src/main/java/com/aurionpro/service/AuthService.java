@@ -1,12 +1,11 @@
 package com.aurionpro.service;
 
-
-
 import java.util.List;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.aurionpro.dto.request.ChangePasswordRequestDto;
 import com.aurionpro.dto.request.EmployeeRegisterRequestDto;
 import com.aurionpro.dto.request.LoginRequestDto;
 import com.aurionpro.dto.request.OrgRegisterRequestDto;
@@ -23,8 +22,12 @@ public interface AuthService {
 
 	public EmployeeRegisterResponseDto registerEmployee(Authentication authentication,
 			EmployeeRegisterRequestDto request);
+
 	public EmployeeBulkRegisterResponseDto registerEmployeesInBulk(OrganizationEntity org,
-	        List<EmployeeRegisterRequestDto> employeeRequests);
+			List<EmployeeRegisterRequestDto> employeeRequests);
+
 	public EmployeeBulkRegisterResponseDto registerEmployeesFromExcel(Authentication authentication,
 			MultipartFile file);
+
+	public void changePassword(ChangePasswordRequestDto request);
 }

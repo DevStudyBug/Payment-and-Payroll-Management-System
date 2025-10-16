@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.SecureRandom;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,6 +31,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.aurionpro.app.exception.DuplicateResourceException;
 import com.aurionpro.app.exception.InvalidOperationException;
 import com.aurionpro.app.exception.NotFoundException;
+import com.aurionpro.dto.request.ChangePasswordRequestDto;
 import com.aurionpro.dto.request.EmployeeRegisterRequestDto;
 import com.aurionpro.dto.request.LoginRequestDto;
 import com.aurionpro.dto.request.OrgRegisterRequestDto;
@@ -136,6 +138,13 @@ public class AuthServiceImplementation implements AuthService {
 		// Collect all roles
 		Set<String> roleNames = user.getRoles().stream().map(UserRoleEntity::getRole).collect(Collectors.toSet());
 
+		// Check if Employee and first time login
+		if (roleNames.contains("EMPLOYEE") && user.isFirstLogin()) {
+			return LoginResponseDto.builder().userId(user.getUserId()).email(user.getEmail()).roles(roleNames)
+					.message("First-time login detected. Please change your password before continuing.")
+					.status("FIRST_TIME_LOGIN").build();
+		}
+
 		// Generate JWT with roles
 		String jwt = jwtService
 				.generateToken(
@@ -143,15 +152,8 @@ public class AuthServiceImplementation implements AuthService {
 								.password(user.getPassword()).authorities(roleNames.toArray(new String[0])).build(),
 						roleNames);
 
-		// Get organization status (if applicable)
-
-		// String Status = (user.getOrganization() != null) ?
-		// user.getOrganization().getStatus() : user.getEmployee().getStatus();
-
-//		String Status = (user.getOrganization() != null) ? user.getOrganization().getStatus() : user.getEmployee().getStatus();
-
 		return LoginResponseDto.builder().token(jwt).userId(user.getUserId()).email(user.getEmail()).roles(roleNames)
-				.message("Login successful.").build();
+				.message("Login successful.").status("SUCCESS").build();
 	}
 
 	@Override
@@ -188,7 +190,7 @@ public class AuthServiceImplementation implements AuthService {
 		userEntity.setPassword(hashedPassword);
 		userEntity.setEmail(request.getEmail());
 		userEntity.setFirstLogin(true);
-		userEntity.setStatus("INACTIVE"); // will become ACTIVE after verification
+		userEntity.setStatus("INACTIVE");
 
 		// Assign EMPLOYEE role
 		UserRoleEntity role = new UserRoleEntity();
@@ -420,6 +422,23 @@ public class AuthServiceImplementation implements AuthService {
 		result.getFailedRegistrations().addAll(errors);
 
 		return result;
+	}
+
+	@Override
+	public void changePassword(ChangePasswordRequestDto request) {
+		UserEntity user = userRepository.findByUsername(request.getUsername())
+				.orElseThrow(() -> new NotFoundException("User not found"));
+
+		if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+			throw new InvalidOperationException("Old password is incorrect");
+		}
+
+		user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+		user.setFirstLogin(false);
+		user.setPasswordChanged(true);
+		user.setLastPasswordChangedAt(LocalDateTime.now());
+
+		userRepository.save(user);
 	}
 
 	// Helper function Execel upload

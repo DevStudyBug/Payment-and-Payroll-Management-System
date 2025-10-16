@@ -55,6 +55,7 @@ public class EmailServiceImplementation implements EmailService {
 	}
 
 	@Override
+	@Async("emailTaskExecutor")
 	public void sendBankAdminVerificationEmail(OrganizationEntity org) {
 		String subject = "Organization Verified - Payment & Payroll Portal";
 		String body = """

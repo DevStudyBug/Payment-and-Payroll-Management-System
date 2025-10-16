@@ -234,7 +234,7 @@ public class OrganizationOnboardingServiceImplementation implements Organization
 
 		if ("APPROVED".equals(documentStage) && "APPROVED".equals(bankStage)) {
 			onboardingProgress = "COMPLETED";
-			message = "🎉 Organization onboarding completed successfully. You can now register employees.";
+			message = "🎉 Organization onboarding completed successfully. You can now Access The Entire Dashboard.";
 		} else if ("NOT_UPLOADED".equals(documentStage) && "NOT_PROVIDED".equals(bankStage)) {
 			onboardingProgress = "NOT_STARTED";
 			message = "📄 Please upload required documents and provide bank details to start verification.";
@@ -255,7 +255,7 @@ public class OrganizationOnboardingServiceImplementation implements Organization
 			message = "⏳ Onboarding under review. Please wait for admin verification.";
 		} else {
 			onboardingProgress = "IN_PROGRESS";
-			message = "📋 Onboarding in progress. Complete remaining steps.";
+			message = "📋 Onboarding in progress";
 		}
 
 		return OrganizationOnboardingStatusResponseDto.builder().organizationId(org.getOrgId())

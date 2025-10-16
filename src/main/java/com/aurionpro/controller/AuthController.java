@@ -1,5 +1,6 @@
 package com.aurionpro.controller;
 
+
 import java.util.Date;
 import java.util.Map;
 
@@ -8,11 +9,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.aurionpro.app.exception.NotFoundException;
+import com.aurionpro.dto.request.ChangePasswordRequestDto;
 import com.aurionpro.dto.request.LoginRequestDto;
 import com.aurionpro.dto.request.OrgRegisterRequestDto;
 import com.aurionpro.dto.response.LoginResponseDto;
@@ -48,7 +52,7 @@ public class AuthController {
 	@GetMapping("/verify-email")
 	public ResponseEntity<String> verifyEmail(@RequestParam("token") String token) {
 		VerificationTokenEntity vToken = verificationTokenRepo.findByToken(token)
-				.orElseThrow(() -> new RuntimeException("Invalid token"));
+				.orElseThrow(() -> new NotFoundException("Invalid token"));
 
 		if (vToken.isUsed()) {
 			return ResponseEntity.badRequest().body("This verification link has already been used.");
@@ -57,7 +61,7 @@ public class AuthController {
 		if (vToken.getExpiryDate().before(new Date())) {
 			return ResponseEntity.badRequest().body("This verification link has expired.");
 		}
-
+		
 		UserEntity user = vToken.getUser();
 		user.setStatus("ACTIVE");
 		userRepository.save(user);
@@ -72,5 +76,11 @@ public class AuthController {
 		LoginResponseDto response = authService.loginOrganization(request);
 		return ResponseEntity.ok(response);
 	}
+	@PutMapping("/change-password")
+	public ResponseEntity<String> changeEmployeePassword(@Valid @RequestBody ChangePasswordRequestDto request) {
+	    authService.changePassword(request);
+	    return ResponseEntity.ok("Password changed successfully! Please login again.");
+	}
+
 
 }

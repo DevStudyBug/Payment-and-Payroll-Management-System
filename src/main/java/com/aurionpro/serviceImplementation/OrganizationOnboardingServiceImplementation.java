@@ -212,7 +212,7 @@ public class OrganizationOnboardingServiceImplementation implements Organization
 			case "APPROVED" -> bankStage = "APPROVED";
 			case "REJECTED" -> {
 				bankStage = "REJECTED";
-				bankRejectionReason = "Bank details verification failed. Please correct and re-submit.";
+				bankRejectionReason = "Bank details verification failed."+bank.getRemarks();
 			}
 			case "UNDER_REVIEW" -> bankStage = "UNDER_REVIEW";
 			default -> bankStage = "PROVIDED";
@@ -221,10 +221,9 @@ public class OrganizationOnboardingServiceImplementation implements Organization
 
 		// Document summary list
 		List<DocumentSummaryDto> docDtos = docs.stream()
-				.map(doc -> DocumentSummaryDto.builder().documentName(doc.getFileName()).fileType(doc.getFileType())
-						.status(doc.getStatus())
+				.map(doc -> DocumentSummaryDto.builder().documentId(doc.getDocumentId()).documentName(doc.getFileName())
+						.fileType(doc.getFileType()).status(doc.getStatus())
 						.rejectionReason("REJECTED".equalsIgnoreCase(doc.getStatus()) ? doc.getRejectionReason() : null)
-
 						.build())
 				.collect(Collectors.toList());
 
@@ -232,7 +231,7 @@ public class OrganizationOnboardingServiceImplementation implements Organization
 		String onboardingProgress;
 		String message;
 
-		if ("APPROVED".equals(documentStage) && "APPROVED".equals(bankStage)) {
+		if ("APPROVED".equals(documentStage) && "APPROVED".equals(bankStage) && "ACTIVE".equals(org.getStatus())) {
 			onboardingProgress = "COMPLETED";
 			message = "🎉 Organization onboarding completed successfully. You can now Access The Entire Dashboard.";
 		} else if ("NOT_UPLOADED".equals(documentStage) && "NOT_PROVIDED".equals(bankStage)) {

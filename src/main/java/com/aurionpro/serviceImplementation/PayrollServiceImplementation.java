@@ -74,13 +74,12 @@ public class PayrollServiceImplementation implements PayrollService {
 
 		YearMonth requestedMonth;
 		try {
-			requestedMonth = YearMonth.parse(salaryMonth); // Expected format: "2025-10"
+			requestedMonth = YearMonth.parse(salaryMonth); // Expected format: "YYYY-MM"
 		} catch (DateTimeParseException e) {
 			throw new IllegalArgumentException("Invalid salary month format. Expected format: YYYY-MM (e.g., 2025-10)");
 		}
 
 		YearMonth currentMonth = YearMonth.now();
-
 		if (!requestedMonth.equals(currentMonth)) {
 			throw new IllegalArgumentException("Payroll can only be generated for the current month. Current month: "
 					+ currentMonth + ", Requested month: " + requestedMonth);
@@ -95,20 +94,29 @@ public class PayrollServiceImplementation implements PayrollService {
 		if (hasActivePayroll)
 			throw new IllegalStateException("Payroll for " + salaryMonth + " already exists.");
 
+		// Fetch all employees
 		List<EmployeeEntity> employees = employeeRepo.findByOrganization_OrgId(org.getOrgId());
 		if (employees.isEmpty())
 			throw new NotFoundException("No employees found for organization " + org.getOrgName());
 
-		List<EmployeeEntity> activeEmployees = employees.stream().filter(e -> "ACTIVE".equalsIgnoreCase(e.getStatus()))
-				.toList();
+		// ✅ New Rule: All employees must be ACTIVE
+		boolean allActive = employees.stream()
+				.allMatch(e -> e.getStatus() != null && e.getStatus().equalsIgnoreCase("ACTIVE"));
 
-		if (activeEmployees.isEmpty())
-			throw new NotFoundException("No active employees available for payroll generation.");
+		if (!allActive) {
+			// Find non-active employees to give a clear message
+			List<String> nonActiveEmployees = employees.stream().filter(e -> !e.getStatus().equalsIgnoreCase("ACTIVE"))
+					.map(e -> e.getFirstName() + " " + e.getLastName() + " (" + e.getStatus() + ")").toList();
 
+			throw new IllegalStateException("Payroll generation blocked. The following employees are not ACTIVE: "
+					+ String.join(", ", nonActiveEmployees));
+		}
+
+		// Proceed only if all employees are ACTIVE
 		List<SalaryDisbursementEntity> batch = new ArrayList<>();
 		int batchSize = 10;
 
-		for (EmployeeEntity emp : activeEmployees) {
+		for (EmployeeEntity emp : employees) {
 			try {
 				EmployeeSalaryEntity empSalary = employeeSalaryRepo.findByEmployee(emp).orElseThrow(
 						() -> new NotFoundException("Salary info missing for employee: " + emp.getFirstName()));
@@ -151,46 +159,60 @@ public class PayrollServiceImplementation implements PayrollService {
 		if (!batch.isEmpty())
 			salaryDisbursementRepo.saveAll(batch);
 
-		return new PayrollGenerateResponseDto("Payroll generated successfully for " + salaryMonth, salaryMonth,
-				activeEmployees.size());
+		return new PayrollGenerateResponseDto(
+				"✅ Payroll generated successfully for " + salaryMonth + " (" + employees.size() + " employees)",
+				salaryMonth, employees.size());
 	}
 
 	// SUBMIT PAYROLL TO BANK (Org Admin)
 	// -----------------------------------------------------------------
 	@Override
 	public PayrollSubmitResponseDto submitPayrollToBank(Authentication authentication, String salaryMonth) {
-		UserEntity user = userRepository.findByUsername(authentication.getName())
-				.orElseThrow(() -> new NotFoundException("User not found"));
-		OrganizationEntity org = user.getOrganization();
-		if (org == null)
-			throw new NotFoundException("User is not associated with any organization.");
+	    UserEntity user = userRepository.findByUsername(authentication.getName())
+	            .orElseThrow(() -> new NotFoundException("User not found"));
 
-		List<SalaryDisbursementEntity> disbursements = salaryDisbursementRepo
-				.getPendingDisbursementsByOrg(org.getOrgId());
+	    OrganizationEntity org = user.getOrganization();
+	    if (org == null)
+	        throw new NotFoundException("User is not associated with any organization.");
 
-		if (disbursements.isEmpty())
-			throw new NotFoundException("No generated payrolls found for this organization.");
+	    //  Fetch disbursements for that specific month
+	    List<SalaryDisbursementEntity> disbursements = salaryDisbursementRepo
+	            .findByOrganization_OrgIdAndSalaryMonthAndStatusIgnoreCase(org.getOrgId(), salaryMonth, "GENERATED");
 
-		double totalAmount = disbursements.stream().mapToDouble(SalaryDisbursementEntity::getNetSalary).sum();
+	    if (disbursements.isEmpty()) {
+	        throw new NotFoundException(
+	                "No generated payrolls found for organization " + org.getOrgName() +
+	                " for the month " + salaryMonth + ".");
+	    }
 
-		PaymentRequestEntity paymentRequest = new PaymentRequestEntity();
-		paymentRequest.setOrganization(org);
-		paymentRequest.setAmount(totalAmount);
-		paymentRequest.setDescription("Monthly Payroll for " + salaryMonth);
-		paymentRequest.setRequestType(PaymentRequestType.PAYROLL);
-		paymentRequest.setStatus("PENDING");
-		paymentRequest.setRequestDate(LocalDateTime.now());
-		paymentRequestRepo.save(paymentRequest);
+	    //  Calculate total amount
+	    double totalAmount = disbursements.stream()
+	            .mapToDouble(SalaryDisbursementEntity::getNetSalary)
+	            .sum();
 
-		disbursements.forEach(d -> {
-			d.setStatus("UNDER_REVIEW");
-			d.setPaymentRequest(paymentRequest);
-		});
-		salaryDisbursementRepo.saveAll(disbursements);
+	    // Create payment request entry
+	    PaymentRequestEntity paymentRequest = new PaymentRequestEntity();
+	    paymentRequest.setOrganization(org);
+	    paymentRequest.setAmount(totalAmount);
+	    paymentRequest.setDescription("Monthly Payroll for " + salaryMonth);
+	    paymentRequest.setRequestType(PaymentRequestType.PAYROLL);
+	    paymentRequest.setStatus("PENDING");
+	    paymentRequest.setRequestDate(LocalDateTime.now());
+	    paymentRequestRepo.save(paymentRequest);
 
-		return new PayrollSubmitResponseDto("Payroll submitted to bank successfully.", paymentRequest.getPaymentId(),
-				paymentRequest.getStatus());
+	    // Update disbursements to UNDER_REVIEW and link to payment request
+	    disbursements.forEach(d -> {
+	        d.setStatus("UNDER_REVIEW");
+	        d.setPaymentRequest(paymentRequest);
+	    });
+	    salaryDisbursementRepo.saveAll(disbursements);
+
+	    return new PayrollSubmitResponseDto(
+	            "Payroll for " + salaryMonth + " submitted to bank successfully.",
+	            paymentRequest.getPaymentId(),
+	            paymentRequest.getStatus());
 	}
+
 
 	@Override
 	public Object approvePaymentRequest(Long paymentRequestId) {

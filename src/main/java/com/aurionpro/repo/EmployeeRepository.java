@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.aurionpro.entity.EmployeeEntity;
+import com.aurionpro.entity.UserEntity;
 
 @Repository
 public interface EmployeeRepository extends JpaRepository<EmployeeEntity, Long> {
@@ -15,6 +16,7 @@ public interface EmployeeRepository extends JpaRepository<EmployeeEntity, Long> 
 	 List<EmployeeEntity> findByOrganization_OrgId(Long orgId);
 	 
 	 Optional<EmployeeEntity> findByUser_Username(String username);
+	
 	 
 
 }

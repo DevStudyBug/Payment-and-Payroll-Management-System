@@ -12,6 +12,6 @@ public interface EmployeeDashboardService {
 	public byte[] downloadSalarySlip(String username, String salaryMonth);
 
 	public EmployeeBankDetailsResponseDto updateBankDetails(String username, EmployeeBankDetailsRequestDto request);
-
 	public EmployeeBankDetailsFullResponseDto getBankDetails(String username);
+
 }

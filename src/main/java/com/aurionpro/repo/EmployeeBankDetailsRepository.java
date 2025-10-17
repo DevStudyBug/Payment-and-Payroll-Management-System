@@ -12,4 +12,5 @@ public interface EmployeeBankDetailsRepository extends JpaRepository<EmployeeBan
 	boolean existsByEmployee(EmployeeEntity employee);
 
 	EmployeeBankDetailsEntity findByEmployee(EmployeeEntity employee);
+	
 }

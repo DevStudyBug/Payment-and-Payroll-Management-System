@@ -26,5 +26,10 @@ public interface SalaryDisbursementRepository extends JpaRepository<SalaryDisbur
 
 	Optional<SalaryDisbursementEntity> findByEmployeeAndSalaryMonthAndStatus(EmployeeEntity employee,
 			String salaryMonth, String status);
+	List<SalaryDisbursementEntity> findByOrganization_OrgIdAndSalaryMonthAndStatusIgnoreCase(
+	        Long orgId,
+	        String salaryMonth,
+	        String status);
+
 
 }

@@ -126,6 +126,7 @@ public class BankAdminServiceImplementation implements BankAdminService {
 		doc.setStatus("REJECTED");
 		org.setStatus("REJECTED");
 		doc.setVerifiedAt(LocalDateTime.now());
+		doc.setRejectionReason(reason);
 		organizationRepo.save(org);
 
 		// Send rejection email

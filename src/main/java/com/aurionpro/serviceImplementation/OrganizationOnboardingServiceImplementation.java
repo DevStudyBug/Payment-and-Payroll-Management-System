@@ -237,6 +237,9 @@ public class OrganizationOnboardingServiceImplementation implements Organization
 		} else if ("NOT_UPLOADED".equals(documentStage) && "NOT_PROVIDED".equals(bankStage)) {
 			onboardingProgress = "NOT_STARTED";
 			message = "📄 Please upload required documents and provide bank details to start verification.";
+		} else if ("UNDER_REVIEW".equals(documentStage) && "NOT_PROVIDED".equals(bankStage)) {
+			onboardingProgress = "NOT_STARTED";
+			message = "📄 Please provide bank details to start verification.";
 		} else if ("REJECTED".equals(documentStage) && "REJECTED".equals(bankStage)) {
 			onboardingProgress = "FAILED";
 			message = "❌ Both documents and bank details were rejected. Please re-upload and re-submit.";

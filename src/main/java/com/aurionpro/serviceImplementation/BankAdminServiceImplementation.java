@@ -124,6 +124,7 @@ public class BankAdminServiceImplementation implements BankAdminService {
 				.orElseThrow(() -> new RuntimeException("Document not found"));
 
 		doc.setStatus("REJECTED");
+		org.setStatus("REJECTED");
 		doc.setVerifiedAt(LocalDateTime.now());
 		organizationRepo.save(org);
 
@@ -165,6 +166,7 @@ public class BankAdminServiceImplementation implements BankAdminService {
 
 		bank.setVerificationStatus("REJECTED");
 		bank.setVerifiedAt(LocalDateTime.now());
+		bank.setRemarks(reason);
 		organizationRepo.save(org);
 
 		// Send rejection email

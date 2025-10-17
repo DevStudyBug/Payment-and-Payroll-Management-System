@@ -1,28 +1,34 @@
 package com.aurionpro.dto.response;
 
 import java.util.List;
-import lombok.*;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Builder
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
 public class EmployeeOnboardingStatusDto {
-	private Long employeeId;
-	private String name;
-	private String status;
-	private int overallProgress;
-	private String statusMessage;
-	private boolean isComplete;
+    private Long employeeId;
+    private String employeeName;
+    private String employeeStatus;
 
-	// new fields
-	private int approvedDocuments;
-	private int rejectedDocuments;
-	private int pendingDocuments;
+    private String documentStage; // e.g., NOT_UPLOADED, PARTIALLY_UPLOADED, UNDER_REVIEW, APPROVED, REJECTED
+    private int totalDocuments;
+    private int approvedDocuments;
+    private int rejectedDocuments;
+    private int pendingDocuments;
+    private List<String> missingDocuments;
 
-	private List<String> missingDocuments;
-	private boolean bankDetailsSubmitted;
-	private String bankStatus;
+    private String bankStage;
+    private String bankRejectionReason;
+   
 
-	private List<OnboardingStepDto> nextSteps;
+    private String onboardingProgress; // COMPLETED, PARTIAL, FAILED, IN_PROGRESS, IN_REVIEW
+    private String message;
+
+    private List<DocumentSummaryDto> documents;
 }

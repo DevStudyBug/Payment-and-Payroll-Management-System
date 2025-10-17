@@ -72,7 +72,6 @@ public class EmployeeDashboardServiceImplementation implements EmployeeDashboard
 	            .reviewerComments(bank.getReviewerComments())
 	            .build();
 	}
-
 	@Transactional(readOnly = false)
 	@Override
 	public EmployeeBankDetailsResponseDto updateBankDetails(String username, EmployeeBankDetailsRequestDto request) {

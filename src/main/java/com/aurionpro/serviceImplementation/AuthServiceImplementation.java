@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -157,95 +158,113 @@ public class AuthServiceImplementation implements AuthService {
 	}
 
 	@Override
-	public EmployeeRegisterResponseDto registerEmployee(Authentication authentication,
-			EmployeeRegisterRequestDto request) {
+	public EmployeeRegisterResponseDto registerEmployee(
+	        Authentication authentication, EmployeeRegisterRequestDto request) {
 
-		UserEntity orgAdmin = userRepository.findByUsername(authentication.getName())
-				.orElseThrow(() -> new NotFoundException("User not found"));
+	    // ✅ 1️⃣ Duplicate email check
+	    if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+	        throw new DuplicateResourceException(
+	                "Email '" + request.getEmail() + "' is already registered.");
+	    }
 
-		OrganizationEntity org = orgAdmin.getOrganization();
-		if (org == null) {
-			throw new NotFoundException("User is not associated with any organization.");
-		}
+	    // ✅ 2️⃣ Verify logged-in user and organization
+	    UserEntity orgAdmin = userRepository.findByUsername(authentication.getName())
+	            .orElseThrow(() -> new NotFoundException("User not found"));
 
-		// Age validation (must be 20+)
-		if (request.getDob() != null) {
-			int age = java.time.Period.between(request.getDob(), java.time.LocalDate.now()).getYears();
-			if (age < 20) {
-				throw new IllegalArgumentException("Employee must be at least 20 years old.");
-			}
-		}
+	    OrganizationEntity org = orgAdmin.getOrganization();
+	    if (org == null) {
+	        throw new NotFoundException("User is not associated with any organization.");
+	    }
 
-		// Generate unique username
-		String baseUsername = (request.getFirstName() + "." + request.getLastName()).toLowerCase();
-		String username = generateUniqueUsername(baseUsername, org.getOrgId());
+	    // ✅ 3️⃣ Validate age (must be 20+)
+	    if (request.getDob() != null) {
+	        int age = Period.between(request.getDob(), LocalDate.now()).getYears();
+	        if (age < 20) {
+	            throw new IllegalArgumentException("Employee must be at least 20 years old.");
+	        }
+	    }
 
-		// Generate random temp password
-		String rawPassword = generateRandomPassword(10);
-		String hashedPassword = passwordEncoder.encode(rawPassword);
+	    // ✅ 4️⃣ Validate designation exists in organization
+	    DesignationEntity designationEntity = org.getDesignations().stream()
+	            .filter(d -> d.getName().equalsIgnoreCase(request.getDesignation()))
+	            .findFirst()
+	            .orElseThrow(() -> new NotFoundException(
+	                    "Designation '" + request.getDesignation() + "' not found for this organization."));
 
-		// Create UserEntity (status = INACTIVE until email verified)
-		UserEntity userEntity = new UserEntity();
-		userEntity.setUsername(username);
-		userEntity.setPassword(hashedPassword);
-		userEntity.setEmail(request.getEmail());
-		userEntity.setFirstLogin(true);
-		userEntity.setStatus("INACTIVE");
+	    // ✅ 5️⃣ Check salary template availability for that designation
+	    Optional<SalaryTemplateEntity> templateOpt =
+	            salaryTemplateRepository.findByOrganizationAndDesignation(org, designationEntity);
 
-		// Assign EMPLOYEE role
-		UserRoleEntity role = new UserRoleEntity();
-		role.setRole("EMPLOYEE");
-		role.setUser(userEntity);
-		userEntity.getRoles().add(role);
+	    if (templateOpt.isEmpty()) {
+	        throw new IllegalArgumentException(
+	                "No salary template found for designation: " + request.getDesignation());
+	    }
 
-		// Save user
-		userRepository.save(userEntity);
+	    // ✅ 6️⃣ Generate unique username and temporary password
+	    String baseUsername = (request.getFirstName() + "." + request.getLastName()).toLowerCase();
+	    String username = generateUniqueUsername(baseUsername, org.getOrgId());
 
-		// Create EmployeeEntity
-		EmployeeEntity employee = new EmployeeEntity();
-		employee.setUser(userEntity);
-		employee.setOrganization(org);
-		employee.setFirstName(request.getFirstName());
-		employee.setLastName(request.getLastName());
-		employee.setDob(request.getDob());
-		employee.setDepartment(request.getDepartment());
-		employee.setDesignation(request.getDesignation());
-		employee.setStatus("PENDING");
-		employeeRepository.save(employee);
+	    String rawPassword = generateRandomPassword(10);
+	    String hashedPassword = passwordEncoder.encode(rawPassword);
 
-		// Assign salary template (if available)
-		DesignationEntity designationEntity = org.getDesignations().stream()
-				.filter(d -> d.getName().equalsIgnoreCase(request.getDesignation())).findFirst()
-				.orElseThrow(() -> new NotFoundException(
-						"Designation '" + request.getDesignation() + "' not found for this organization."));
+	    // ✅ 7️⃣ Create UserEntity
+	    UserEntity userEntity = new UserEntity();
+	    userEntity.setUsername(username);
+	    userEntity.setPassword(hashedPassword);
+	    userEntity.setEmail(request.getEmail());
+	    userEntity.setFirstLogin(true);
+	    userEntity.setStatus("INACTIVE");
 
-		Optional<SalaryTemplateEntity> templateOpt = salaryTemplateRepository.findByOrganizationAndDesignation(org,
-				designationEntity);
-		templateOpt.ifPresent(template -> {
-			EmployeeSalaryEntity salary = new EmployeeSalaryEntity();
-			salary.setEmployee(employee);
-			salary.setTemplate(template);
-			salary.setCustomAllowances(null);
-			employeeSalaryRepository.save(salary);
-		});
+	    // Assign EMPLOYEE role
+	    UserRoleEntity role = new UserRoleEntity();
+	    role.setRole("EMPLOYEE");
+	    role.setUser(userEntity);
+	    userEntity.getRoles().add(role);
+	    userRepository.save(userEntity);
 
-		// Create verification token
-		String token = UUID.randomUUID().toString();
-		VerificationTokenEntity vToken = new VerificationTokenEntity(token, userEntity);
-		tokenRepo.save(vToken);
+	    // ✅ 8️⃣ Create EmployeeEntity
+	    EmployeeEntity employee = new EmployeeEntity();
+	    employee.setUser(userEntity);
+	    employee.setOrganization(org);
+	    employee.setFirstName(request.getFirstName());
+	    employee.setLastName(request.getLastName());
+	    employee.setDob(request.getDob());
+	    employee.setDepartment(request.getDepartment());
+	    employee.setDesignation(request.getDesignation());
+	    employee.setStatus("PENDING");
+	    employeeRepository.save(employee);
 
-		String verificationLink = "http://localhost:8080/api/v1/auth/verify-email?token=" + token;
+	    // ✅ 9️⃣ Link Salary Template (mandatory since already validated)
+	    SalaryTemplateEntity template = templateOpt.get();
+	    EmployeeSalaryEntity salary = new EmployeeSalaryEntity();
+	    salary.setEmployee(employee);
+	    salary.setTemplate(template);
+	    salary.setCustomAllowances(null);
+	    employeeSalaryRepository.save(salary);
 
-		// Send verification email with credentials
-		try {
-			emailService.sendVerificationEmail(request.getEmail(), username, rawPassword, verificationLink);
-		} catch (Exception e) {
-			throw new InvalidOperationException("Failed to send verification email. Please try again later.");
-		}
+	    // ✅ 🔟 Create verification token
+	    String token = UUID.randomUUID().toString();
+	    VerificationTokenEntity vToken = new VerificationTokenEntity(token, userEntity);
+	    tokenRepo.save(vToken);
 
-		return EmployeeRegisterResponseDto.builder().username(username).temporaryPassword(rawPassword)
-				.status(employee.getStatus()).build();
+	    String verificationLink = "http://localhost:8080/api/v1/auth/verify-email?token=" + token;
+
+	    // ✅ 1️⃣1️⃣ Send verification email
+	    try {
+	        emailService.sendVerificationEmail(
+	                request.getEmail(), username, rawPassword, verificationLink);
+	    } catch (Exception e) {
+	        throw new InvalidOperationException(
+	                "Failed to send verification email. Please try again later.");
+	    }
+
+	    return EmployeeRegisterResponseDto.builder()
+	            .username(username)
+	            .temporaryPassword(rawPassword)
+	            .status(employee.getStatus())
+	            .build();
 	}
+
 
 	@Override
 	@Transactional
@@ -262,13 +281,31 @@ public class AuthServiceImplementation implements AuthService {
 
 		Map<String, String> tempPasswords = new HashMap<>();
 
+		// ✅ Step 1️⃣: Preload all valid designations that have salary templates for
+		// this org
+		Set<String> validDesignations = salaryTemplateRepository.findAllByOrganization(org).stream()
+				.map(SalaryTemplateEntity::getDesignation).filter(Objects::nonNull).map(DesignationEntity::getName)
+				.filter(Objects::nonNull).map(String::trim).map(String::toLowerCase).collect(Collectors.toSet());
+
+		// ✅ Step 2️⃣: Iterate over employees
 		for (int i = 0; i < employeeRequests.size(); i++) {
 			EmployeeRegisterRequestDto req = employeeRequests.get(i);
-			try {
 
+			try {
+				// ✅ Validate age
 				if (req.getDob() != null && Period.between(req.getDob(), LocalDate.now()).getYears() < 20)
 					throw new IllegalArgumentException("Employee must be at least 20 years old.");
 
+				// ✅ Validate salary template availability
+				String designation = Optional.ofNullable(req.getDesignation()).map(String::trim)
+						.map(String::toLowerCase).orElse("");
+
+				if (!validDesignations.contains(designation)) {
+					throw new IllegalArgumentException(
+							"No salary template found for designation: " + req.getDesignation());
+				}
+
+				// ✅ Generate username & password
 				String baseUsername = (req.getFirstName() + "." + req.getLastName()).toLowerCase();
 				String username = generateUniqueUsername(baseUsername, org.getOrgId());
 				String rawPassword = generateRandomPassword(10);
@@ -276,6 +313,7 @@ public class AuthServiceImplementation implements AuthService {
 
 				tempPasswords.put(username, rawPassword);
 
+				// ✅ Create user
 				UserEntity user = new UserEntity();
 				user.setUsername(username);
 				user.setPassword(encodedPassword);
@@ -289,6 +327,7 @@ public class AuthServiceImplementation implements AuthService {
 				user.getRoles().add(role);
 				usersToSave.add(user);
 
+				// ✅ Create employee
 				EmployeeEntity emp = new EmployeeEntity();
 				emp.setUser(user);
 				emp.setOrganization(org);
@@ -307,6 +346,7 @@ public class AuthServiceImplementation implements AuthService {
 				failureList.add("Row " + (i + 1) + ": " + e.getMessage());
 			}
 
+			// ✅ Save in batches (to optimize DB I/O)
 			if (usersToSave.size() >= 10 || i == employeeRequests.size() - 1) {
 				userRepository.saveAll(usersToSave);
 				employeeRepository.saveAll(employeesToSave);
@@ -320,6 +360,7 @@ public class AuthServiceImplementation implements AuthService {
 			}
 		}
 
+		// ✅ Step 3️⃣: Send verification emails asynchronously
 		for (UserEntity user : savedUsers) {
 			try {
 				String token = UUID.randomUUID().toString();
@@ -327,7 +368,6 @@ public class AuthServiceImplementation implements AuthService {
 				tokenRepo.save(vToken);
 
 				String verificationLink = "http://localhost:8080/api/v1/auth/verify-email?token=" + token;
-
 				String tempPassword = tempPasswords.get(user.getUsername());
 
 				asyncEmailTasks.add(() -> {
@@ -345,7 +385,6 @@ public class AuthServiceImplementation implements AuthService {
 		}
 
 		asyncEmailTasks.forEach(Runnable::run);
-
 		tempPasswords.clear();
 
 		return EmployeeBulkRegisterResponseDto.builder().successfulRegistrations(successList)

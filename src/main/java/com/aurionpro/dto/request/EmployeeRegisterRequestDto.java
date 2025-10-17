@@ -2,7 +2,6 @@ package com.aurionpro.dto.request;
 
 import jakarta.validation.constraints.*;
 import lombok.*;
-
 import java.time.LocalDate;
 
 @Data
@@ -11,23 +10,23 @@ import java.time.LocalDate;
 @Builder
 public class EmployeeRegisterRequestDto {
 
-    @NotBlank
+    @NotBlank(message = "First name is required.")
     private String firstName;
 
-    @NotBlank
+    @NotBlank(message = "Last name is required.")
     private String lastName;
 
-    @Past(message = "Date of birth must be in the past.")
     @NotNull(message = "Date of birth is required.")
+    @Past(message = "Date of birth must be a past date.")
     private LocalDate dob;
 
-    @NotBlank
+    @NotBlank(message = "Department is required.")
     private String department;
 
-    @NotBlank
+    @NotBlank(message = "Designation is required.")
     private String designation;
 
-    @Email
-    @NotBlank
+    @NotBlank(message = "Email address is required.")
+    @Email(message = "Please enter a valid email address.")
     private String email;
 }

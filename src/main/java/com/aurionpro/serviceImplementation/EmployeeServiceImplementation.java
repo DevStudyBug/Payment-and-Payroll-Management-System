@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
@@ -15,11 +17,11 @@ import com.aurionpro.app.exception.InvalidOperationException;
 import com.aurionpro.app.exception.NotFoundException;
 import com.aurionpro.constants.RequiredDocuments;
 import com.aurionpro.dto.request.EmployeeBankDetailsRequestDto;
+import com.aurionpro.dto.response.DocumentSummaryDto;
 import com.aurionpro.dto.response.DocumentUploadResponseDto;
 import com.aurionpro.dto.response.DocumentUploadResultDto;
 import com.aurionpro.dto.response.EmployeeBankDetailsResponseDto;
 import com.aurionpro.dto.response.EmployeeOnboardingStatusDto;
-import com.aurionpro.dto.response.OnboardingStepDto;
 import com.aurionpro.entity.DocumentEntity;
 import com.aurionpro.entity.EmployeeBankDetailsEntity;
 import com.aurionpro.entity.EmployeeEntity;
@@ -185,95 +187,108 @@ public class EmployeeServiceImplementation implements EmployeeService {
 	public EmployeeOnboardingStatusDto getOnboardingStatus(String username) {
 		UserEntity user = userRepository.findByUsername(username)
 				.orElseThrow(() -> new NotFoundException("User not found"));
+
 		EmployeeEntity emp = user.getEmployee();
 		if (emp == null)
 			throw new InvalidOperationException("User is not an employee.");
 
-		Long employeeId = emp.getEmployeeId();
-		String fullName = emp.getFirstName() + " " + emp.getLastName();
-		String empStatus = emp.getStatus();
-
-		// DOCUMENT STATS
 		List<DocumentEntity> docs = documentRepository.findByEmployee(emp);
-		int totalRequired = RequiredDocuments.REQUIRED_DOC_TYPES.size();
-		long uploadedCount = docs.stream().filter(d -> RequiredDocuments.REQUIRED_DOC_TYPES.contains(d.getFileType()))
-				.count();
+		EmployeeBankDetailsEntity bank = emp.getBankDetails();
 
-		long approvedDocs = docs.stream().filter(d -> "APPROVED".equalsIgnoreCase(d.getStatus())).count();
-		long rejectedDocs = docs.stream().filter(d -> "REJECTED".equalsIgnoreCase(d.getStatus())).count();
-		long pendingDocs = docs.stream().filter(d -> "PENDING".equalsIgnoreCase(d.getStatus())).count();
+		List<String> requiredDocs = RequiredDocuments.REQUIRED_DOC_TYPES;
 
-		double progress = ((double) uploadedCount / totalRequired) * 70; 
+		// --- DOCUMENT STAGE ---
+		Set<String> uploadedDocTypes = docs.stream().map(d -> d.getFileType().toUpperCase())
+				.collect(Collectors.toSet());
 
-		// BANK STATS
-		boolean hasBank = emp.getBankDetails() != null;
-		String bankStatus = hasBank ? emp.getBankDetails().getVerificationStatus() : "NOT_SUBMITTED";
-		progress += hasBank ? 30 : 0; 
+		List<String> missingDocs = requiredDocs.stream().filter(req -> !uploadedDocTypes.contains(req.toUpperCase()))
+				.collect(Collectors.toList());
 
-		// NEXT STEPS
-		List<OnboardingStepDto> nextSteps = new ArrayList<>();
+		long approvedCount = docs.stream().filter(d -> "APPROVED".equalsIgnoreCase(d.getStatus())).count();
+		long rejectedCount = docs.stream().filter(d -> "REJECTED".equalsIgnoreCase(d.getStatus())).count();
+		long pendingCount = docs.stream().filter(d -> "PENDING".equalsIgnoreCase(d.getStatus())).count();
+		int totalDocs = docs.size();
 
-		// Missing Documents
-		List<String> missingDocs = RequiredDocuments.REQUIRED_DOC_TYPES.stream()
-				.filter(type -> docs.stream().noneMatch(d -> d.getFileType().equalsIgnoreCase(type))).toList();
-
-		if (!missingDocs.isEmpty()) {
-			nextSteps.add(OnboardingStepDto.builder().priority("HIGH").action("Upload Missing Documents")
-					.description(
-							"Upload " + missingDocs.size() + " required document(s): " + String.join(", ", missingDocs))
-					.endpoint("/api/employee/upload-documents").build());
+		String documentStage;
+		if (totalDocs == 0) {
+			documentStage = "NOT_UPLOADED";
+		} else if (!missingDocs.isEmpty()) {
+			documentStage = "PARTIALLY_UPLOADED";
+		} else if (approvedCount == totalDocs) {
+			documentStage = "APPROVED";
+		} else if (rejectedCount > 0) {
+			documentStage = "REJECTED";
+		} else if (pendingCount > 0) {
+			documentStage = "UNDER_REVIEW";
+		} else {
+			documentStage = "UPLOADED";
 		}
 
-		// Rejected Documents
-		List<String> rejectedDocTypes = docs.stream().filter(d -> "REJECTED".equalsIgnoreCase(d.getStatus()))
-				.map(DocumentEntity::getFileType).toList();
+		// --- BANK STAGE ---
+		String bankStage;
+		String bankRejectionReason = null;
 
-		if (!rejectedDocTypes.isEmpty()) {
-			nextSteps.add(OnboardingStepDto.builder().priority("HIGH").action("Re-upload Rejected Documents")
-					.description("Re-upload " + rejectedDocTypes.size() + " rejected document(s): "
-							+ String.join(", ", rejectedDocTypes))
-					.endpoint("/api/v1/employee/reupload/document/{documentId}").build());
+		if (bank == null) {
+			bankStage = "NOT_PROVIDED";
+		} else {
+			switch (bank.getVerificationStatus()) {
+			case "APPROVED" -> bankStage = "APPROVED";
+			case "REJECTED" -> {
+				bankStage = "REJECTED";
+				bankRejectionReason = "Bank details verification failed. " + bank.getReviewerComments();
+			}
+			case "UNDER_REVIEW" -> bankStage = "UNDER_REVIEW";
+			default -> bankStage = "PROVIDED";
+			}
 		}
 
-		// Bank Details Handling
-		if (!hasBank) {
-			nextSteps.add(OnboardingStepDto.builder().priority("HIGH").action("Submit Bank Details")
-					.description("Add your bank account information for salary processing.")
-					.endpoint("/api/v1/employee/add-bank-details").build());
-		} else if ("REJECTED".equalsIgnoreCase(bankStatus)) {
-			nextSteps.add(OnboardingStepDto.builder().priority("HIGH").action("Update Bank Details")
-					.description("Your bank details were rejected. Please correct and resubmit.")
-					.endpoint("/api/v1/employee/reupload/bank-details").build());
+		// --- DOCUMENT SUMMARY DTOs ---
+		List<DocumentSummaryDto> docDtos = docs.stream()
+				.map(doc -> DocumentSummaryDto.builder().documentId(doc.getDocumentId()).documentName(doc.getFileName())
+						.fileType(doc.getFileType()).status(doc.getStatus())
+						.rejectionReason("REJECTED".equalsIgnoreCase(doc.getStatus()) ? doc.getRejectionReason() : null)
+						.build())
+				.collect(Collectors.toList());
+
+		// --- PROGRESS & MESSAGE ---
+		String onboardingProgress;
+		String message;
+
+		if ("APPROVED".equals(documentStage) && "APPROVED".equals(bankStage) && "ACTIVE".equals(emp.getStatus())) {
+			onboardingProgress = "COMPLETED";
+			message = "🎉 Organization onboarding completed successfully. You can now Access The Entire Dashboard.";
+		} else if ("NOT_UPLOADED".equals(documentStage) && "NOT_PROVIDED".equals(bankStage)) {
+			onboardingProgress = "NOT_STARTED";
+			message = "📄 Please upload required documents and provide bank details to start verification.";
+		} else if ("UNDER_REVIEW".equals(documentStage) && "NOT_PROVIDED".equals(bankStage)) {
+			onboardingProgress = "NOT_STARTED";
+			message = "📄 Please provide bank details to start verification.";
+		} else if ("REJECTED".equals(documentStage) && "REJECTED".equals(bankStage)) {
+			onboardingProgress = "FAILED";
+			message = "❌ Both documents and bank details were rejected. Please re-upload and re-submit.";
+		} else if ("PARTIALLY_UPLOADED".equals(documentStage)) {
+			onboardingProgress = "PARTIAL";
+			message = "⚠️ Some required documents are missing. Please upload: " + String.join(", ", missingDocs);
+		} else if ("REJECTED".equals(documentStage)) {
+			onboardingProgress = "PARTIAL";
+			message = "❌ Some documents were rejected. Please re-upload the rejected ones.";
+		} else if ("REJECTED".equals(bankStage)) {
+			onboardingProgress = "PARTIAL";
+			message = "❌ Bank details were rejected. Please update and resubmit.";
+		} else if ("UNDER_REVIEW".equals(documentStage) || "UNDER_REVIEW".equals(bankStage) ||"UNDER_REVIEW".equals(emp.getStatus())) {
+			onboardingProgress = "IN_REVIEW";
+			message = "⏳ Onboarding under review. Please wait for admin verification.";
+		} else {
+			onboardingProgress = "IN_PROGRESS";
+			message = "📋 Onboarding in progress";
 		}
 
-		// Status-based steps
-		switch (empStatus.toUpperCase()) {
-		case "UNDER_REVIEW" -> nextSteps.add(OnboardingStepDto.builder().priority("INFO").action("Wait for HR Approval")
-				.description("Your documents and bank details are being reviewed by HR.").endpoint(null).build());
-		case "REJECTED" -> nextSteps.add(OnboardingStepDto.builder().priority("HIGH").action("Fix Rejected Items")
-				.description("Some items were rejected. Please correct and resubmit.")
-				.endpoint("/api/employee/reupload/rejected-items").build());
-		case "ACTIVE" -> nextSteps.add(OnboardingStepDto.builder().priority("INFO").action("Onboarding Complete")
-				.description("🎉 Welcome aboard! You can now access all employee features.").endpoint(null).build());
-		}
-
-		String statusMessage = switch (empStatus.toUpperCase()) {
-		case "PENDING" -> "Please upload required documents and add bank details.";
-		case "DOCUMENTS_UPLOADED" -> "Documents uploaded. Add your bank details.";
-		case "UNDER_REVIEW" -> "Your profile is under review by HR.";
-		case "ACTIVE" -> "Onboarding complete.";
-		case "REJECTED" ->
-			rejectedDocTypes.isEmpty() ? "Some details were rejected. Please check your email for instructions."
-					: "Some documents were rejected: " + String.join(", ", rejectedDocTypes);
-		default -> "Continue your onboarding process.";
-		};
-
-		return EmployeeOnboardingStatusDto.builder().employeeId(employeeId).name(fullName).status(empStatus)
-				.overallProgress((int) progress).statusMessage(statusMessage)
-				.isComplete("ACTIVE".equalsIgnoreCase(empStatus)).missingDocuments(missingDocs)
-				.bankDetailsSubmitted(hasBank).bankStatus(bankStatus).nextSteps(nextSteps)
-				.approvedDocuments((int) approvedDocs).rejectedDocuments((int) rejectedDocs)
-				.pendingDocuments((int) pendingDocs).build();
+		return EmployeeOnboardingStatusDto.builder().employeeId(emp.getEmployeeId())
+				.employeeName(emp.getFirstName() + " " + emp.getLastName()).employeeStatus(emp.getStatus())
+				.documentStage(documentStage).totalDocuments(totalDocs).approvedDocuments((int) approvedCount)
+				.rejectedDocuments((int) rejectedCount).pendingDocuments((int) pendingCount)
+				.missingDocuments(missingDocs).bankStage(bankStage).bankRejectionReason(bankRejectionReason)
+				.documents(docDtos).onboardingProgress(onboardingProgress).message(message).build();
 	}
 
 	@Override

@@ -20,4 +20,6 @@ public interface EmployeeService {
 
 	public EmployeeBankDetailsResponseDto reuploadRejectedBankDetails(String username,
 			EmployeeBankDetailsRequestDto request);
+	
+	
 }

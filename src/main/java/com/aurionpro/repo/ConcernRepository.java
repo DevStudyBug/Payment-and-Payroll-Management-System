@@ -16,7 +16,9 @@ public interface ConcernRepository extends JpaRepository<ConcernEntity, Long> {
 
 	List<ConcernEntity> findByEmployee_EmployeeId(Long employeeId);
 
-	Optional<ConcernEntity> findByTicketNumber(String ticketNumber);
+//	Optional<ConcernEntity> findByTicketNumber(String ticketNumber);
+	@Query("SELECT c FROM ConcernEntity c JOIN FETCH c.employee WHERE c.ticketNumber = :ticketNumber")
+	Optional<ConcernEntity> findByTicketNumber(@Param("ticketNumber") String ticketNumber);
 
 
 	@Query("SELECT c FROM ConcernEntity c " + "JOIN FETCH c.employee e " + "JOIN FETCH c.organization o "

@@ -54,6 +54,7 @@ public class OrgAdminConcernServiceImpl implements OrgAdminConcernService {
 	}
 
 	@Override
+	@Transactional
 	public ConcernResponseDto respondToConcern(Long orgId, String ticketNumber, String response) {
 		ConcernEntity concern = concernRepo.findByTicketNumber(ticketNumber)
 				.orElseThrow(() -> new NotFoundException("Concern not found"));
@@ -73,23 +74,27 @@ public class OrgAdminConcernServiceImpl implements OrgAdminConcernService {
 	}
 
 	@Override
+	@Transactional
 	public ConcernResponseDto resolveConcern(Long orgId, String ticketNumber, String response) {
-		ConcernEntity concern = concernRepo.findByTicketNumber(ticketNumber)
-				.orElseThrow(() -> new NotFoundException("Concern not found"));
+	    ConcernEntity concern = concernRepo.findByTicketNumber(ticketNumber)
+	            .orElseThrow(() -> new NotFoundException("Concern not found"));
 
-		validateOrgAccess(concern, orgId);
-		validateStatusTransition(concern, ConcernConstants.STATUS_RESOLVED);
+	    validateOrgAccess(concern, orgId);
+	    validateStatusTransition(concern, ConcernConstants.STATUS_RESOLVED);
 
-		concern.setAdminResponse(response);
-		concern.setStatus(ConcernConstants.STATUS_RESOLVED);
-		concern.setUpdatedAt(LocalDateTime.now());
-		concernRepo.save(concern);
+	    concern.setAdminResponse(response);
+	    concern.setStatus(ConcernConstants.STATUS_RESOLVED);
+	    concern.setUpdatedAt(LocalDateTime.now());
+	    concernRepo.save(concern);
 
-		emailService.sendConcernStatusUpdateEmail(concern.getEmployee(), concern.getTicketNumber(), concern.getStatus(),
-				concern.getAdminResponse());
+	    emailService.sendConcernStatusUpdateEmail(
+	        concern.getEmployee(), concern.getTicketNumber(),
+	        concern.getStatus(), concern.getAdminResponse()
+	    );
 
-		return mapToDto(concern);
+	    return mapToDto(concern);
 	}
+
 
 	@Override
 	public ConcernResponseDto rejectConcern(Long orgId, String ticketNumber, String response) {

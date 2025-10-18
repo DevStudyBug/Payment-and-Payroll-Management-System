@@ -81,7 +81,7 @@ public class EmployeeConcernServiceImpl implements EmployeeConcernService {
 						.employeeName(c.getEmployee().getFirstName() + " " + c.getEmployee().getLastName())
 						.organizationName(c.getOrganization().getOrgName()).ticketNumber(c.getTicketNumber())
 						.category(c.getCategory()).priority(c.getPriority()).description(c.getDescription())
-						.status(c.getStatus()).attachmentUrl(c.getAttachmentUrl()).createdAt(c.getCreatedAt())
+						.status(c.getStatus()).adminResponse(c.getAdminResponse()).attachmentUrl(c.getAttachmentUrl()).createdAt(c.getCreatedAt())
 						.updatedAt(c.getUpdatedAt()).build())
 				.collect(Collectors.toList());
 
@@ -153,6 +153,7 @@ public class EmployeeConcernServiceImpl implements EmployeeConcernService {
 	    }
 
 	    concern.setStatus(ConcernConstants.STATUS_REOPENED);
+	    concern.setDescription(reason);
 	    concern.setUpdatedAt(LocalDateTime.now());
 	    concernRepo.save(concern);
 

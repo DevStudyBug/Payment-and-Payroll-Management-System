@@ -63,105 +63,112 @@ public class PayrollServiceImplementation implements PayrollService {
 
 	// GENERATE PAYROLL (Org Admin)
 	// -----------------------------------------------------------------
+	@Transactional
 	@Override
 	public PayrollGenerateResponseDto generatePayroll(Authentication authentication, String salaryMonth) {
-		UserEntity user = userRepository.findByUsername(authentication.getName())
-				.orElseThrow(() -> new NotFoundException("User not found"));
+	    UserEntity user = userRepository.findByUsername(authentication.getName())
+	            .orElseThrow(() -> new NotFoundException("User not found"));
 
-		OrganizationEntity org = user.getOrganization();
-		if (org == null)
-			throw new NotFoundException("User is not associated with any organization.");
+	    OrganizationEntity org = user.getOrganization();
+	    if (org == null)
+	        throw new NotFoundException("User is not associated with any organization.");
 
-		YearMonth requestedMonth;
-		try {
-			requestedMonth = YearMonth.parse(salaryMonth); // Expected format: "YYYY-MM"
-		} catch (DateTimeParseException e) {
-			throw new IllegalArgumentException("Invalid salary month format. Expected format: YYYY-MM (e.g., 2025-10)");
-		}
+	    YearMonth requestedMonth;
+	    try {
+	        requestedMonth = YearMonth.parse(salaryMonth); // Expected format: "YYYY-MM"
+	    } catch (DateTimeParseException e) {
+	        throw new IllegalArgumentException("Invalid salary month format. Expected format: YYYY-MM (e.g., 2025-10)");
+	    }
 
-		YearMonth currentMonth = YearMonth.now();
-		if (!requestedMonth.equals(currentMonth)) {
-			throw new IllegalArgumentException("Payroll can only be generated for the current month. Current month: "
-					+ currentMonth + ", Requested month: " + requestedMonth);
-		}
+	    YearMonth currentMonth = YearMonth.now();
+	    if (!requestedMonth.equals(currentMonth)) {
+	        throw new IllegalArgumentException("Payroll can only be generated for the current month. Current month: "
+	                + currentMonth + ", Requested month: " + requestedMonth);
+	    }
 
-		// Check for existing payroll
-		List<SalaryDisbursementEntity> existing = salaryDisbursementRepo
-				.findByOrganization_OrgIdAndSalaryMonth(org.getOrgId(), salaryMonth);
+	    // Check for existing payroll
+	    List<SalaryDisbursementEntity> existing = salaryDisbursementRepo
+	            .findByOrganization_OrgIdAndSalaryMonth(org.getOrgId(), salaryMonth);
 
-		boolean hasActivePayroll = existing.stream().anyMatch(
-				d -> !d.getStatus().equalsIgnoreCase("REJECTED") && !d.getStatus().equalsIgnoreCase("CANCELLED"));
-		if (hasActivePayroll)
-			throw new IllegalStateException("Payroll for " + salaryMonth + " already exists.");
+	    boolean hasActivePayroll = existing.stream()
+	            .anyMatch(d -> !d.getStatus().equalsIgnoreCase("REJECTED") && !d.getStatus().equalsIgnoreCase("CANCELLED"));
+	    if (hasActivePayroll)
+	        throw new IllegalStateException("Payroll for " + salaryMonth + " already exists.");
 
-		// Fetch all employees
-		List<EmployeeEntity> employees = employeeRepo.findByOrganization_OrgId(org.getOrgId());
-		if (employees.isEmpty())
-			throw new NotFoundException("No employees found for organization " + org.getOrgName());
+	    // Fetch all employees
+	    List<EmployeeEntity> employees = employeeRepo.findByOrganization_OrgId(org.getOrgId());
+	    if (employees.isEmpty())
+	        throw new NotFoundException("No employees found for organization " + org.getOrgName());
 
-		// ✅ New Rule: All employees must be ACTIVE
-		boolean allActive = employees.stream()
-				.allMatch(e -> e.getStatus() != null && e.getStatus().equalsIgnoreCase("ACTIVE"));
+	    // ✅ New Rule: All employees must be ACTIVE
+	    boolean allActive = employees.stream()
+	            .allMatch(e -> e.getStatus() != null && e.getStatus().equalsIgnoreCase("ACTIVE"));
 
-		if (!allActive) {
-			// Find non-active employees to give a clear message
-			List<String> nonActiveEmployees = employees.stream().filter(e -> !e.getStatus().equalsIgnoreCase("ACTIVE"))
-					.map(e -> e.getFirstName() + " " + e.getLastName() + " (" + e.getStatus() + ")").toList();
+	    if (!allActive) {
+	        List<String> nonActiveEmployees = employees.stream()
+	                .filter(e -> !e.getStatus().equalsIgnoreCase("ACTIVE"))
+	                .map(e -> e.getFirstName() + " " + e.getLastName() + " (" + e.getStatus() + ")")
+	                .toList();
 
-			throw new IllegalStateException("Payroll generation blocked. The following employees are not ACTIVE: "
-					+ String.join(", ", nonActiveEmployees));
-		}
+	        throw new IllegalStateException("Payroll generation blocked. The following employees are not ACTIVE: "
+	                + String.join(", ", nonActiveEmployees));
+	    }
 
-		// Proceed only if all employees are ACTIVE
-		List<SalaryDisbursementEntity> batch = new ArrayList<>();
-		int batchSize = 10;
+	    // ✅ Strict Salary Info Check — fail if ANY employee lacks salary
+	    List<String> missingSalary = employees.stream()
+	            .filter(emp -> employeeSalaryRepo.findByEmployee(emp).isEmpty())
+	            .map(emp -> emp.getFirstName() + " " + emp.getLastName())
+	            .toList();
 
-		for (EmployeeEntity emp : employees) {
-			try {
-				EmployeeSalaryEntity empSalary = employeeSalaryRepo.findByEmployee(emp).orElseThrow(
-						() -> new NotFoundException("Salary info missing for employee: " + emp.getFirstName()));
+	    if (!missingSalary.isEmpty()) {
+	        throw new IllegalStateException("Payroll generation blocked. Missing salary information for employees: "
+	                + String.join(", ", missingSalary));
+	    }
 
-				SalaryTemplateEntity template = empSalary.getTemplate();
+	    // Proceed only if all employees have salary info
+	    List<SalaryDisbursementEntity> batch = new ArrayList<>();
+	    int batchSize = 10;
 
-				double basic = template.getBasicSalary().doubleValue();
-				double hra = template.getHra().doubleValue();
-				double da = template.getDa().doubleValue();
-				double pf = template.getPf().doubleValue();
-				double other = template.getOtherAllowances().doubleValue();
+	    for (EmployeeEntity emp : employees) {
+	        EmployeeSalaryEntity empSalary = employeeSalaryRepo.findByEmployee(emp).get();
+	        SalaryTemplateEntity template = empSalary.getTemplate();
 
-				double gross = basic + hra + da + other;
-				double net = gross - pf;
+	        double basic = template.getBasicSalary().doubleValue();
+	        double hra = template.getHra().doubleValue();
+	        double da = template.getDa().doubleValue();
+	        double pf = template.getPf().doubleValue();
+	        double other = template.getOtherAllowances().doubleValue();
 
-				SalaryDisbursementEntity dis = new SalaryDisbursementEntity();
-				dis.setOrganization(org);
-				dis.setEmployee(emp);
-				dis.setSalaryMonth(salaryMonth);
-				dis.setBasicSalary(basic);
-				dis.setHra(hra);
-				dis.setAllowances(da + other);
-				dis.setDeductions(pf);
-				dis.setNetSalary(net);
-				dis.setStatus("GENERATED");
-				dis.setRemark("Auto-generated from employee salary template.");
+	        double gross = basic + hra + da + other;
+	        double net = gross - pf;
 
-				batch.add(dis);
+	        SalaryDisbursementEntity dis = new SalaryDisbursementEntity();
+	        dis.setOrganization(org);
+	        dis.setEmployee(emp);
+	        dis.setSalaryMonth(salaryMonth);
+	        dis.setBasicSalary(basic);
+	        dis.setHra(hra);
+	        dis.setAllowances(da + other);
+	        dis.setDeductions(pf);
+	        dis.setNetSalary(net);
+	        dis.setStatus("GENERATED");
+	        dis.setRemark("Auto-generated from employee salary template.");
 
-				if (batch.size() == batchSize) {
-					salaryDisbursementRepo.saveAll(batch);
-					batch.clear();
-				}
+	        batch.add(dis);
 
-			} catch (Exception ex) {
-				System.err.println("Skipping employee " + emp.getFirstName() + ": " + ex.getMessage());
-			}
-		}
+	        if (batch.size() == batchSize) {
+	            salaryDisbursementRepo.saveAll(batch);
+	            batch.clear();
+	        }
+	    }
 
-		if (!batch.isEmpty())
-			salaryDisbursementRepo.saveAll(batch);
+	    if (!batch.isEmpty()) {
+	        salaryDisbursementRepo.saveAll(batch);
+	    }
 
-		return new PayrollGenerateResponseDto(
-				"✅ Payroll generated successfully for " + salaryMonth + " (" + employees.size() + " employees)",
-				salaryMonth, employees.size());
+	    return new PayrollGenerateResponseDto(
+	            "✅ Payroll generated successfully for " + salaryMonth + " (" + employees.size() + " employees)",
+	            salaryMonth, employees.size());
 	}
 
 	// SUBMIT PAYROLL TO BANK (Org Admin)

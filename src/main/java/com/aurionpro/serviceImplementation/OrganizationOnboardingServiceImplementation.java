@@ -145,6 +145,16 @@ public class OrganizationOnboardingServiceImplementation implements Organization
 			throw new NotFoundException("User is not associated with any organization.");
 		}
 
+		String orgName = org.getOrgName() != null ? org.getOrgName().trim().toLowerCase() : "";
+		String accHolderName = req.getAccountHolderName() != null ? req.getAccountHolderName().trim().toLowerCase()
+				: "";
+
+		if (!orgName.equals(accHolderName)) {
+			throw new InvalidOperationException(
+					String.format("Account holder name ('%s') must match the organization name ('%s').",
+							req.getAccountHolderName(), org.getOrgName()));
+		}
+
 		OrganizationBankAccountEntity bank = modelMapper.map(req, OrganizationBankAccountEntity.class);
 		bank.setOrganization(org);
 		bank.setVerificationStatus("PENDING");
@@ -212,7 +222,7 @@ public class OrganizationOnboardingServiceImplementation implements Organization
 			case "APPROVED" -> bankStage = "APPROVED";
 			case "REJECTED" -> {
 				bankStage = "REJECTED";
-				bankRejectionReason = "Bank details verification failed."+bank.getRemarks();
+				bankRejectionReason = "Bank details verification failed." + bank.getRemarks();
 			}
 			case "UNDER_REVIEW" -> bankStage = "UNDER_REVIEW";
 			default -> bankStage = "PROVIDED";
@@ -320,7 +330,7 @@ public class OrganizationOnboardingServiceImplementation implements Organization
 	@Override
 	public OrganizationOnboardingResponseDto reuploadBankDetails(Authentication authentication,
 			BankDetailsRequestDto req) {
-		// Step 1: Fetch org
+
 		UserEntity user = userRepository.findByUsername(authentication.getName())
 				.orElseThrow(() -> new NotFoundException("User not found"));
 
@@ -329,27 +339,34 @@ public class OrganizationOnboardingServiceImplementation implements Organization
 			throw new NotFoundException("User is not associated with any organization.");
 		}
 
-		// Step 2: Fetch existing bank details
 		OrganizationBankAccountEntity bank = bankRepository.findByOrganization(org)
 				.orElseThrow(() -> new NotFoundException("Bank details not found for this organization."));
 
-		// Step 3: Check if it’s rejected before reupload
 		if (!"REJECTED".equalsIgnoreCase(bank.getVerificationStatus())) {
 			throw new InvalidOperationException("Bank details can only be re-submitted if previously rejected.");
 		}
 
-		// Step 4: Update details with new info
+		String orgName = org.getOrgName() != null ? org.getOrgName().trim().toLowerCase() : "";
+		String accHolderName = req.getAccountHolderName() != null ? req.getAccountHolderName().trim().toLowerCase()
+				: "";
+
+		if (!orgName.equals(accHolderName)) {
+			throw new InvalidOperationException(
+					String.format("Account holder name ('%s') must match the organization name ('%s').",
+							req.getAccountHolderName(), org.getOrgName()));
+		}
+
 		bank.setAccountNumber(req.getAccountNumber());
 		bank.setIfscCode(req.getIfscCode());
 		bank.setBankName(req.getBankName());
 		bank.setAccountHolderName(req.getAccountHolderName());
-		bank.setVerificationStatus("PENDING"); // reset for re-verification
+		bank.setVerificationStatus("PENDING");
+		bank.setRemarks(null);
 		bank.setVerifiedBy(null);
 		bank.setVerifiedAt(null);
 
 		bankRepository.save(bank);
 
-		// Step 5: Update org’s status
 		org.setBankDetailsProvided(true);
 		updateStatus(org);
 

@@ -122,10 +122,16 @@ public class SalaryTemplateServiceImplementation implements SalaryTemplateServic
 		if (!template.getOrganization().getOrgId().equals(org.getOrgId()))
 			throw new NotFoundException("This template does not belong to your organization.");
 
-		SalaryTemplateDetailResponseDto dto = modelMapper.map(template, SalaryTemplateDetailResponseDto.class);
-		dto.setDesignation(template.getDesignation().getName());
-		dto.setCreatedAt(template.getCreatedAt().toString());
-		dto.setUpdatedAt(template.getUpdatedAt() != null ? template.getUpdatedAt().toString() : null);
+		SalaryTemplateDetailResponseDto dto = SalaryTemplateDetailResponseDto.builder()
+				.salaryTemplateId(template.getSalaryTemplateId())
+				.designation(template.getDesignation() != null ? template.getDesignation().getName() : null)
+				.basicSalary(template.getBasicSalary()).hra(template.getHra()).da(template.getDa()).pf(template.getPf())
+				.otherAllowances(template.getOtherAllowances()).grossSalary(template.getGrossSalary())
+				.netSalary(template.getNetSalary())
+				.createdAt(template.getCreatedAt() != null ? template.getCreatedAt().toString() : null)
+				.updatedAt(template.getUpdatedAt() != null ? template.getUpdatedAt().toString() : null).build();
+
 		return dto;
 	}
+
 }

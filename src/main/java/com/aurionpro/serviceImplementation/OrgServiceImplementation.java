@@ -70,30 +70,53 @@ public class OrgServiceImplementation implements OrgService {
 
 	@Override
 	public EmployeeDetailResponseDto getEmployeeDetails(Long employeeId) {
-		EmployeeEntity emp = employeeRepository.findById(employeeId)
-				.orElseThrow(() -> new NotFoundException("Employee not found"));
+	    EmployeeEntity emp = employeeRepository.findById(employeeId)
+	            .orElseThrow(() -> new NotFoundException("Employee not found"));
 
-		List<DocumentEntity> docs = documentRepository.findByEmployee(emp);
-		EmployeeBankDetailsEntity bank = emp.getBankDetails();
+	    List<DocumentEntity> docs = documentRepository.findByEmployee(emp);
+	    EmployeeBankDetailsEntity bank = emp.getBankDetails();
 
-		List<DocumentReviewDto> documentDtos = docs.stream()
-				.map(d -> DocumentReviewDto.builder().documentId(d.getDocumentId()).type(d.getFileType())
-						.fileName(d.getFileName()).fileUrl(d.getFileUrl()).status(d.getStatus())
-						.rejectionReason(d.getRejectionReason()).uploadedAt(d.getUploadedAt())
-						.actionRequired(getDocActionRequired(d)).build())
-				.collect(Collectors.toList());
+	    List<DocumentReviewDto> documentDtos = docs.stream()
+	            .map(d -> DocumentReviewDto.builder()
+	                    .documentId(d.getDocumentId())
+	                    .type(d.getFileType())
+	                    .fileName(d.getFileName())
+	                    .fileUrl(d.getFileUrl())
+	                    .status(d.getStatus())
+	                    .rejectionReason(d.getRejectionReason())
+	                    .uploadedAt(d.getUploadedAt())
+	                    .actionRequired(getDocActionRequired(d))
+	                    .build())
+	            .collect(Collectors.toList());
 
-		BankReviewDto bankDto = null;
-		if (bank != null) {
-			bankDto = BankReviewDto.builder().accountHolderName(bank.getAccountHolderName())
-					.accountNumberMasked(bank.getAccountNumber()).bankName(bank.getBankName())
-					.ifscCode(bank.getIfscCode()).branchName(bank.getBranchName()).status(bank.getVerificationStatus())
-					.rejectionReason(bank.getReviewerComments()).build();
-		}
+	    BankReviewDto bankDto = null;
+	    if (bank != null) {
+	        bankDto = BankReviewDto.builder()
+	                .accountHolderName(bank.getAccountHolderName())
+	                .accountNumberMasked(bank.getAccountNumber())
+	                .bankName(bank.getBankName())
+	                .ifscCode(bank.getIfscCode())
+	                .branchName(bank.getBranchName())
+	                .status(bank.getVerificationStatus())
+	                .rejectionReason(bank.getReviewerComments())
+	                .build();
+	    }
 
-		return EmployeeDetailResponseDto.builder().employeeId(emp.getEmployeeId())
-				.name(emp.getFirstName() + " " + emp.getLastName()).status(emp.getStatus()).documents(documentDtos)
-				.bankDetails(bankDto).build();
+	   
+	    UserEntity user = emp.getUser();
+
+	    return EmployeeDetailResponseDto.builder()
+	            .employeeId(emp.getEmployeeId())
+	            .name(emp.getFirstName() + " " + emp.getLastName())
+	            .email(user != null ? user.getEmail() : "N/A")
+	            .username(user != null ? user.getUsername() : "N/A")
+	            .department(emp.getDepartment() != null ? emp.getDepartment() : "N/A")
+	            .designation(emp.getDesignation() != null ? emp.getDesignation() : "N/A")
+	            .dateOfBirth(emp.getDob())
+	            .status(emp.getStatus())
+	            .documents(documentDtos)
+	            .bankDetails(bankDto)
+	            .build();
 	}
 
 	private String getDocActionRequired(DocumentEntity d) {

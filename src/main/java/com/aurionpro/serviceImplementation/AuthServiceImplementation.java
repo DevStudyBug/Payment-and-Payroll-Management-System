@@ -465,20 +465,24 @@ public class AuthServiceImplementation implements AuthService {
 
 	@Override
 	public void changePassword(ChangePasswordRequestDto request) {
-		UserEntity user = userRepository.findByUsername(request.getUsername())
-				.orElseThrow(() -> new NotFoundException("User not found"));
+	   
+	    UserEntity user = userRepository.findByEmail(request.getEmail())
+	            .orElseThrow(() -> new NotFoundException("User not found with email: " + request.getEmail()));
 
-		if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
-			throw new InvalidOperationException("Old password is incorrect");
-		}
+	    // 🔹 Validate old password
+	    if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+	        throw new InvalidOperationException("Old password is incorrect.");
+	    }
 
-		user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-		user.setFirstLogin(false);
-		user.setPasswordChanged(true);
-		user.setLastPasswordChangedAt(LocalDateTime.now());
+	    // 🔹 Update password and user info
+	    user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+	    user.setFirstLogin(false);
+	    user.setPasswordChanged(true);
+	    user.setLastPasswordChangedAt(LocalDateTime.now());
 
-		userRepository.save(user);
+	    userRepository.save(user);
 	}
+
 
 	// Helper function Execel upload
 
